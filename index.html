@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>機車路線最佳化（GitHub Pages 版）</title>
+  <style>
+    /* ========= 主題變數：預設淺色，html[data-theme="dark"] 為深色 ========= */
+    :root{
+      --bg:#f8f9fa; --panel:#ffffff; --border:#dee2e6;
+      --muted:#6c757d; --text:#212529; --accent:#0d6efd;
+      --link:#0d6efd; --tag-bg:#e9f2ff; --tag-fg:#0d6efd;
+      --details-bg:#ffffff; --details-border:#dee2e6;
+      --ok:#0f9d58; --error:#d93025;
+    }
+    html[data-theme="dark"]{
+      --bg:#0b0f19; --panel:#121826; --border:#273255;
+      --muted:#9aa4b2; --text:#eef2ff; --accent:#50b0ff;
+      --link:#9ed0ff; --tag-bg:#182235; --tag-fg:#9fb5d1;
+      --details-bg:#0f1524; --details-border:#273255;
+      --ok:#9cffd1; --error:#ff8b8b;
+    }
+
+    /* ========= 基本佈局 ========= */
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
+    .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+    h1{font-weight:700;font-size:22px;margin:0 0 12px}
+    p.lead{color:var(--muted);margin:0 0 16px}
+
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+      box-shadow:0 4px 10px rgb(0 0 0 / 10%);padding:16px;margin:16px 0;}
+
+    /* ========= 表單 ========= */
+    label{font-size:13px;color:var(--muted)}
+    /* 不影響 checkbox 的通用輸入元件樣式 */
+    input:not([type="checkbox"]), select, button{
+      box-sizing:border-box;width:100%;padding:8px 10px;min-height:36px;
+      border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);
+    }
+    html[data-theme="dark"] input:not([type="checkbox"]),
+    html[data-theme="dark"] select,
+    html[data-theme="dark"] button{
+      background:#0e1421;color:var(--text);border-color:#283246;
+    }
+    button{cursor:pointer;background:var(--accent);color:#fff;border:none;font-weight:600}
+    button.secondary{background:#e9ecef;color:var(--text);border:1px solid var(--border)}
+    html[data-theme="dark"] button.secondary{background:#1d273b;border-color:#2a3551}
+    input[type="file"]{padding:8px}
+
+    /* 自適應網格：避免互相遮擋 */
+    .row,.row3,.row4{display:grid;gap:12px}
+    .row {grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .row3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+    .row4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+
+    /* ========= Checkbox 區（使用 .flex 容器） ========= */
+    /* 放在欄位內：上面可加 <div class="muted small">其他選項</div> */
+    .flex{display:flex;align-items:center;gap:16px;min-height:36px;flex-wrap:nowrap}
+    .flex .cb{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+    .flex .cb span{font-size:12px;line-height:1;color:var(--text);transform: translateY(11px);}
+    /* checkbox 本體不吃通用 input 樣式 */
+    input[type="checkbox"]{width:16px;height:16px;margin:0;padding:0;min-height:0;vertical-align:middle;accent-color:var(--accent)}
+    .flex input[type="checkbox"]{transform:translateY(11px);}
+
+    /* ========= 其他 ========= */
+    .muted{color:var(--muted);font-size:13px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+    .links a{display:inline-block;margin:8px 8px 0 0;color:var(--link);text-decoration:none}
+    .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--tag-bg);color:var(--tag-fg);font-size:12px;margin-left:6px}
+    details{background:var(--details-bg);border:1px solid var(--details-border);border-radius:12px;padding:10px 12px}
+    summary{cursor:pointer}
+    .error{color:var(--error)} .ok{color:var(--ok)}
+    .grid{display:grid;gap:10px} .colspan2{grid-column:span 2}
+    .small{font-size:12px}
+    .hr{height:1px;background:var(--border);margin:12px 0}
+    .kbd{padding:0 6px;border-radius:6px;background:rgba(0,0,0,.06);border:1px solid var(--border)}
+    html[data-theme="dark"] .kbd{background:#0b1221;border-color:#28324e}
+
+    /* ========= 右上角主題切換：單一方塊 ========= */
+    .theme-switch{position:fixed;top:12px;right:16px;z-index:10}
+    .theme-switch button{
+      min-height:auto;padding:6px 14px;border-radius:6px;background:var(--panel);
+      color:var(--text);border:1px solid var(--border);font-size:14px;font-weight:500;cursor:pointer;
+    }
+    .theme-switch button:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+  </style>
+
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
+</head>
+<body>
+  <div class="theme-switch" aria-label="主題切換">
+    <button id="themeToggle" type="button">暗色</button>
+  </div>
+  <div class="wrap">
+    <h1>跑店路線最佳化 <span class="tag">GitHub Pages</span></h1>
+    <div class="card grid">
+      <div class="row">
+        <div>
+          <label>Google Maps API Key（僅前端使用，務必設定網域限制與 API 限制）</label>
+          <input id="apiKey" placeholder="粘貼你的 API Key" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>起點（例如：7-ELEVEN 統客門市）</label>
+          <input id="origin" value="7-ELEVEN 統客門市" />
+        </div>
+        <div>
+          <label>終點（例如：231新北市新店區寶興路49號）</label>
+          <input id="destination" value="231新北市新店區寶興路49號" />
+        </div>
+      </div>
+      <div class="row3">
+        <div>
+          <label>總店點最大筆數（Routes API 上限 23）</label>
+          <input id="maxApi" type="number" min="1" max="23" value="23" />
+        </div>
+        <div>
+          <label>每段路徑最大中繼點數（Google Maps URL 上限 8）</label>
+          <input id="maxUrl" type="number" min="1" max="8" value="8" />
+        </div>
+        <div>
+          <label>交通模式</label>
+          <select id="mode">
+            <option value="TWO_WHEELER" selected>機車（TWO_WHEELER）</option>
+            <option value="DRIVE">汽車（DRIVE）</option>
+            <option value="BICYCLE">自行車（BICYCLE）</option>
+            <option value="WALK">步行（WALK）</option>
+          </select>
+        </div>
+      </div>
+      <div class="row3">
+        <div>
+          <label>店名欄位索引（從 0 起算，預設為 0）</label>
+          <input id="colName" type="number" min="0" value="0" />
+        </div>
+        <div>
+          <label>地址欄位索引（從 0 起算，預設為 2）</label>
+          <input id="colAddr" type="number" min="0" value="2" />
+        </div>
+        <div class="flex">
+          <label class="cb" for="avoidHighways">
+            <input id="avoidHighways" type="checkbox" checked />
+            <span>避開高速</span>
+          </label>
+          <label class="cb" for="avoidTolls">
+            <input id="avoidTolls" type="checkbox" checked />
+            <span>避開收費</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>上傳 .csv 店點檔案（無標題列；預設第 0 欄=店名、第 2 欄=地址）</label>
+          <input id="csvFile" type="file" accept=".csv" />
+        </div>
+        <div class="grid">
+          <label>&nbsp;</label>
+          <button id="runBtn">開始產生路線</button>
+          <small class="muted">若機車模式在你的所在區域尚無法支援，系統會自動使用汽車模式。</small>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div id="log" class="small mono"></div>
+    </div>
+
+    <div class="card">
+      <h3>路徑輸出</h3>
+      <div class="links" id="outLinks"></div>
+    </div>
+
+    <details class="card">
+      <summary>說明 / 注意事項</summary>
+      <ul>
+        <li>API Key 需設定「HTTP 來源限制（網域）」與「API 限制（Routes API、Places API、Geocoding API）」。</li>
+        <li>
+          .csv 店點檔案檔作為輸入檔案，需要將 .xlvs 店面檔案先轉檔，並只保留需要跑的店點；預設不存在標題列，故若欄位位置不同，需要調整索引。
+          <details>
+            <summary>範例</summary>
+            <img src="csv_example.png" alt="範例圖片" width="600">
+          </details>
+          
+        </li>
+        <li>Routes API 支援單次最多 25 個點（含起點與終點），故最多能安排 23 個中繼點。</li>
+        <li>Google Maps 手機版 APP 最多支援 8 個停靠點，路徑已自動分段。</li>
+        <li>TWO_WHEELER 模式在部分地區尚未全面開放，若呼叫失敗會自動回到 DRIVE 模式。</li>
+      </ul>
+    </details>
+  </div>
+
+  <script>
+    // ---------- 工具 ----------
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function log(msg, cls = "") {
+      const el = document.getElementById('log');
+      const line = document.createElement('div');
+      line.textContent = msg;
+      if (cls) line.classList.add(cls);
+      el.appendChild(line);
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = (d) => d * Math.PI / 180;
+      const dphi = toRad(lat2 - lat1);
+      const dlambda = toRad(lon2 - lon1);
+      const a = Math.sin(dphi/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dlambda/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    function buildMapsUrl(origin, destination, wps) {
+      const base = "https://www.google.com/maps/dir/?api=1";
+      const params = {
+        origin, destination,
+        travelmode: "driving",
+        avoid: "highways|tolls",
+        dirflg: "m", // two-wheeler flag in URL
+      };
+      if (wps && wps.length) params.waypoints = wps.join("|");
+      const enc = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+      return `${base}&${enc}`;
+    }
+
+    // ★ 讀 CSV：多編碼自動偵測（避免亂碼）
+    async function readCsvSmart(file) {
+      const buf = await file.arrayBuffer();
+      const encodings = ['utf-8', 'big5-hkscs', 'big5', 'cp950', 'utf-16le', 'utf-16be', 'iso-8859-1'];
+      let best = { text: null, enc: null, bad: Infinity };
+
+      for (const enc of encodings) {
+        try {
+          const dec = new TextDecoder(enc, { fatal: false });
+          const text = dec.decode(new Uint8Array(buf));
+          const bad = (text.match(/\uFFFD/g) || []).length; //   的數量
+          if (bad < best.bad) best = { text, enc, bad };
+          if (bad === 0 && /[\u4E00-\u9FFF]/.test(text)) { // 無替換字元且有中文字
+            best = { text, enc, bad };
+            break;
+          }
+        } catch {}
+      }
+      // log(`🔤 CSV 編碼推測：${best.enc ?? '未知'}（ =${best.bad}）`);
+      return best.text ?? new TextDecoder('utf-8').decode(new Uint8Array(buf));
+    }
+
+    async function textSearchLatLng(apiKey, query) {
+      const url = "https://places.googleapis.com/v1/places:searchText";
+      const body = {
+        textQuery: `${query} 台灣`,
+        regionCode: "TW",
+        maxResultCount: 1,
+        languageCode: "zh-TW",
+      };
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "places.location"
+      };
+      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+      if (!r.ok) return null;
+      const j = await r.json();
+      const places = j.places || [];
+      if (!places.length) return null;
+      const loc = places[0].location;
+      return `${loc.latitude},${loc.longitude}`;
+    }
+
+    // ★ Geocoding：加上 language 與 ", 台灣"
+    async function geocodeLatLng(apiKey, query) {
+      const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+      url.searchParams.set('address', `${query} , 台灣`);
+      url.searchParams.set('region', 'tw');
+      url.searchParams.set('language', 'zh-TW');
+      url.searchParams.set('key', apiKey);
+      const r = await fetch(url);
+      if (!r.ok) return null;
+      const j = await r.json();
+      if (!j.results || !j.results.length) return null;
+      const loc = j.results[0].geometry.location;
+      return `${loc.lat},${loc.lng}`;
+    }
+
+    // ★ Robust geocode（地址 → TextSearch → 店名 geocode）
+    async function robustGeocode(apiKey, name, addr) {
+      let addrLL = null;
+      if (addr && addr.trim()) addrLL = await geocodeLatLng(apiKey, addr);
+      if (addrLL) return addrLL;
+
+      const textLL = await textSearchLatLng(apiKey, `${name} ${addr}`.trim());
+      if (textLL) return textLL;
+
+      const nameLL = await geocodeLatLng(apiKey, `${name} , 台灣`);
+      if (!nameLL) return null;
+
+      return nameLL;
+    }
+
+    // ★ 去除過近座標（避免同點）
+    function dedupeClosePoints(wps, thresholdM = 50) {
+      const kept = [];
+      for (const [ll, nm] of wps) {
+        const [lat, lng] = ll.split(',').map(Number);
+        const tooClose = kept.some(([kll]) => {
+          const [klat, klng] = kll.split(',').map(Number);
+          return haversine(lat, lng, klat, klng) < thresholdM;
+        });
+        if (tooClose) {
+          log(`⚠️ 與既有點距離 < ${thresholdM}m，視為重複：${nm}`, 'error');
+          continue;
+        }
+        kept.push([ll, nm]);
+      }
+      return kept;
+    }
+
+    async function computeOptimizedOrder(apiKey, origin, destination, waypoints, travelMode, avoidHighways, avoidTolls) {
+      const endpoint = "https://routes.googleapis.com/directions/v2:computeRoutes";
+      const body = {
+        origin:      { address: `${origin} , 台灣` },
+        destination: { address: `${destination} , 台灣` },
+        intermediates: waypoints.map(([ll]) => {
+          const [lat, lng] = ll.split(',').map(Number);
+          return { location: { latLng: { latitude: lat, longitude: lng } } };
+        }),
+        travelMode,
+        optimizeWaypointOrder: true,
+        routeModifiers: { avoidHighways, avoidTolls },
+        languageCode: "zh-TW"
+      };
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": "routes.optimizedIntermediateWaypointIndex"
+      };
+
+      if (body.intermediates.length < 2) {
+        log('ℹ️ 中繼點少於 2 個，直接採用原順序。');
+        return body.intermediates.map((_, i) => i);
+      }
+
+      let r = await fetch(endpoint, { method:'POST', headers, body: JSON.stringify(body) });
+
+      // TWO_WHEELER 不支援 → fallback 到 DRIVE
+      if (!r.ok && travelMode === 'TWO_WHEELER') {
+        log(`TWO_WHEELER 失敗，嘗試改用 DRIVE...`, 'error');
+        body.travelMode = 'DRIVE';
+        r = await fetch(endpoint, { method:'POST', headers, body: JSON.stringify(body) });
+      }
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`Routes API error: ${t}`);
+      }
+      const j = await r.json();
+      const idx = j.routes?.[0]?.optimizedIntermediateWaypointIndex || [];
+
+      if (!idx.length) {
+        // 很可能是同點/過近 → 提示並回原順序
+        log('⚠️ Routes API 未提供最佳化索引，多半是座標重疊/過近，將直接使用原順序。', 'error');
+        return body.intermediates.map((_, i) => i);
+      }
+      // 防呆：長度不一致時，以兩者最小長度切齊
+      if (idx.length !== waypoints.length) {
+        log(`⚠️ 回傳索引數(${idx.length}) ≠ 中繼點數(${waypoints.length})，將對齊最小長度。`, 'error');
+      }
+      return idx.slice(0, waypoints.length);
+    }
+
+    function splitUrlsAndNames(origin, destination, wpsSorted, maxWpUrl) {
+      const urls = [], names = [];
+      let start = origin; let i = 0; const n = wpsSorted.length;
+      while (i < n) {
+        const seg = wpsSorted.slice(i, i + maxWpUrl);
+        const end = (i + maxWpUrl < n) ? seg[seg.length - 1][0] : destination;
+        const waypointsForUrl = end !== destination ? seg.slice(0, -1).map(([p]) => p) : seg.map(([p]) => p);
+        urls.push(buildMapsUrl(start, end, waypointsForUrl));
+        names.push(seg.map(([_, nm]) => nm));
+        start = end;
+        i += maxWpUrl;
+      }
+      return { urls, names };
+    }
+
+    function downloadText(filename, content) {
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      if (!apiKey) return alert('請先貼上 API Key');
+
+      const origin = document.getElementById('origin').value.trim();
+      const destination = document.getElementById('destination').value.trim();
+      const colName = parseInt(document.getElementById('colName').value, 10) || 0;
+      const colAddr = parseInt(document.getElementById('colAddr').value, 10) || 2;
+      const maxApi = Math.max(1, Math.min(23, parseInt(document.getElementById('maxApi').value, 10) || 23));
+      const maxUrl = Math.max(1, Math.min(8, parseInt(document.getElementById('maxUrl').value, 10) || 8));
+      const travelMode = document.getElementById('mode').value;
+      const avoidHighways = document.getElementById('avoidHighways').checked;
+      const avoidTolls = document.getElementById('avoidTolls').checked;
+
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return alert('請先選擇 CSV 檔');
+
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('outLinks').innerHTML = '';
+
+      log('📥 讀取 .csv ...');
+      // 多編碼解碼 + PapaParse
+      const text = await readCsvSmart(file);
+      const rows = Papa.parse(text, {
+        skipEmptyLines: 'greedy',
+        dynamicTyping: false,
+        header: false
+      }).data;
+
+      const stores = [];
+      for (const r of rows) {
+        const nameRaw = (r[colName] ?? '').toString().trim();
+        const addr = (r[colAddr] ?? '').toString().trim();
+        if (!nameRaw || !addr) continue;
+        const name = nameRaw.startsWith('全聯福利中心') ? nameRaw : `全聯福利中心 ${nameRaw}店`;
+        stores.push([name, addr]);
+        if (stores.length >= maxApi) break;
+      }
+      log(`➡️ 讀到門市 ${stores.length} 筆（上限 ${maxApi}）`);
+
+      if (!stores.length) return alert('CSV 內容為空或欄位索引設定錯誤');
+
+      // 逐筆取得座標（節流避免 QPS 過高）
+      log('📡 解析地點座標（Geocoding / Places Text Search）...');
+      const waypoints = [];
+      for (let i = 0; i < stores.length; i++) {
+        const [name, addr] = stores[i];
+        try {
+          const ll = await robustGeocode(apiKey, name, addr);
+          if (ll) {
+            waypoints.push([ll, name]);
+            log(` ✅ ${name} → ${ll}`, 'ok');
+          } else {
+            log(` ⚠️ 無法定位 ${name}，已跳過。`, 'error');
+          }
+        } catch (e) {
+          log(` ⚠️ ${name} 解析失敗：${e.message}`, 'error');
+        }
+        await sleep(120); // 輕微節流
+      }
+
+      if (!waypoints.length) return alert('沒有可用的中繼點（請檢查 CSV/編碼/地址格式）');
+
+      // ★ 去重，避免同點造成最佳化空回傳
+      const wpsUnique = dedupeClosePoints(waypoints, 50);
+      if (wpsUnique.length < 2) {
+        alert('有效中繼點不足（多數座標重疊）。請檢查 CSV 內容與地址。');
+        return;
+      }
+
+      // 呼叫 Routes API
+      log('🧭 呼叫 Routes API 以最佳化中繼點順序 ...');
+      let order = [];
+      try {
+        order = await computeOptimizedOrder(apiKey, origin, destination, wpsUnique, travelMode, avoidHighways, avoidTolls);
+      } catch (e) {
+        log(e.message, 'error');
+        return alert('Routes API 失敗，請查看 Log');
+      }
+
+      if (!order.length) {
+        // 極端情況：仍為空，最後再防呆一次
+        log('⚠️ 仍未取得最佳化索引，改用原順序輸出。', 'error');
+        order = wpsUnique.map((_, i) => i);
+      }
+
+      // 防呆對齊
+      order = order.slice(0, wpsUnique.length);
+      const wpsSorted = order.map(i => wpsUnique[i]);
+      const { urls, names } = splitUrlsAndNames(origin, destination, wpsSorted, maxUrl);
+      const out = document.getElementById('outLinks');
+      out.innerHTML = '';
+
+      // 建立所有 route 的超連結
+      urls.forEach((u, idx) => {
+        const a = document.createElement('a');
+        a.href = u; a.target = '_blank';
+        a.textContent = `route ${idx+1}`;
+        out.appendChild(a);
+        out.appendChild(document.createElement('br'));
+      });
+
+      // 建立單一合併內容
+      const combinedText = urls.map((u, idx) => {
+        const nm = names[idx] || [];
+        return `route${idx+1}: ${u}\n${nm.join('\n')}`;
+      }).join('\n\n');
+
+      // 提供單一 .txt 下載按鈕
+      const btnAll = document.createElement('button');
+      btnAll.className = 'secondary';
+      btnAll.style.marginTop = '12px';
+      btnAll.textContent = '下載 routes.txt';
+      btnAll.addEventListener('click', () => downloadText('routes.txt', combinedText));
+      out.appendChild(btnAll);
+
+      log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
+            
+    });
+
+    // ============ 主題切換（含記憶） ============
+    (function initTheme(){
+      const root = document.documentElement;
+      const toggleBtn = document.getElementById('themeToggle');
+
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = saved || (prefersDark ? 'dark' : 'light');
+      applyTheme(theme);
+
+      toggleBtn.addEventListener('click', () => {
+        const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+      });
+
+      function applyTheme(mode){
+        if (mode === 'dark') {
+          root.setAttribute('data-theme','dark');
+          toggleBtn.textContent = '淺色';
+        } else {
+          root.removeAttribute('data-theme'); // default = light
+          toggleBtn.textContent = '暗色';
+        }
+        localStorage.setItem('theme', mode);
+      }
+    })();
+
+  </script>
+</body>
+</html>

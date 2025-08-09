@@ -99,17 +99,17 @@
       <div class="row">
         <div>
           <label>Google Maps API Key（僅前端使用，務必設定網域限制與 API 限制）</label>
-          <input id="apiKey" placeholder="粘貼你的 API Key" />
+          <input id="apiKey" placeholder="格式：AIzaSyA-1234567890abcdefgHIJKLMNopqrstu"/>
         </div>
       </div>
       <div class="row">
         <div>
           <label>起點（例如：7-ELEVEN 統客門市）</label>
-          <input id="origin" value="7-ELEVEN 統客門市" />
+          <input id="origin" placeholder="7-ELEVEN 統客門市" /> <!--若想改成預設值，可將 placeholder 改成 value-->
         </div>
         <div>
           <label>終點（例如：231新北市新店區寶興路49號）</label>
-          <input id="destination" value="231新北市新店區寶興路49號" />
+          <input id="destination" placeholder="231新北市新店區寶興路49號" /> <!--若想改成預設值，可將 placeholder 改成 value-->
         </div>
       </div>
       <div class="row3">
@@ -122,12 +122,12 @@
           <input id="maxUrl" type="number" min="1" max="8" value="8" />
         </div>
         <div>
-          <label>交通模式</label>
+          <label>交通工具</label>
           <select id="mode">
-            <option value="TWO_WHEELER" selected>機車（TWO_WHEELER）</option>
-            <option value="DRIVE">汽車（DRIVE）</option>
-            <option value="BICYCLE">自行車（BICYCLE）</option>
-            <option value="WALK">步行（WALK）</option>
+            <option value="TWO_WHEELER" selected>機車</option>
+            <option value="DRIVE">汽車</option>
+            <option value="BICYCLE">自行車</option>
+            <option value="WALK">步行</option>
           </select>
         </div>
       </div>
@@ -143,11 +143,11 @@
         <div class="flex">
           <label class="cb" for="avoidHighways">
             <input id="avoidHighways" type="checkbox" checked />
-            <span>避開高速</span>
+            <span>避開高速公路</span>
           </label>
           <label class="cb" for="avoidTolls">
             <input id="avoidTolls" type="checkbox" checked />
-            <span>避開收費</span>
+            <span>避開收費路段</span>
           </label>
         </div>
       </div>
@@ -176,20 +176,29 @@
     <details class="card">
       <summary>說明 / 注意事項</summary>
       <ul>
-        <li>API Key 需設定「HTTP 來源限制（網域）」與「API 限制（Routes API、Places API、Geocoding API）」。</li>
+        
         <li>
-          .csv 店點檔案檔作為輸入檔案，需要將 .xlvs 店面檔案先轉檔，並只保留需要跑的店點；預設不存在標題列，故若欄位位置不同，需要調整索引。
+          本程式使用 Google Geocoding API 和 Routes API 。詳請請見
+          <a href="https://cloud.google.com/apis?hl=zh-TW" target="_blank">Cloud API | Google Cloud</a>
+          <ul>
+            <li>API Key 需設定「HTTP 來源限制（網域）」與「API 限制（Routes API、Places API、Geocoding API）」。</li>
+            <li>Routes API 支援單次最多 25 個點（含起點與終點），故最多能安排 23 個中繼點。</li>
+            <li>Google Maps 手機版 APP 最多支援 8 個停靠點，路徑已自動分段。</li>
+            <li>機車模式在部分地區尚未全面開放，若呼叫失敗會自動回到汽車模式。</li>
+          </ul>
+        </li>
+        
+        <li>
+          .csv 店點檔案檔作為輸入檔案，需要將 .xlvs 店面檔案先轉檔，並只保留需要的點；預設不存在標題列，故若欄位位置不同，需要調整索引。
           <details>
             <summary>範例</summary>
             <img src="csv_example.png" alt="範例圖片" width="600">
           </details>
-          
         </li>
-        <li>Routes API 支援單次最多 25 個點（含起點與終點），故最多能安排 23 個中繼點。</li>
-        <li>Google Maps 手機版 APP 最多支援 8 個停靠點，路徑已自動分段。</li>
-        <li>TWO_WHEELER 模式在部分地區尚未全面開放，若呼叫失敗會自動回到 DRIVE 模式。</li>
+        
       </ul>
     </details>
+    
   </div>
 
   <script>
@@ -543,4 +552,5 @@
   </script>
 </body>
 </html>
+
 

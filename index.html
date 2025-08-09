@@ -642,7 +642,8 @@
       urls.forEach((u, idx) => {
         const a = document.createElement('a');
         a.href = u; a.target = '_blank';
-        a.textContent = `route ${idx+1}`;
+        a.textContent = `路線${idx+1}`;
+        a.style.display = 'block';
         routesWrap.appendChild(a);
       });
 

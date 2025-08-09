@@ -1,6 +1,19 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
+  <!-- Security -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://maps.googleapis.com https://places.googleapis.com;
+    connect-src 'self' https://routes.googleapis.com https://maps.googleapis.com https://places.googleapis.com;
+    img-src 'self' data:;
+    style-src 'self' 'unsafe-inline';
+    object-src 'none';
+    base-uri 'none';
+    frame-ancestors 'none';
+  ">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>機車路線最佳化</title>
@@ -177,7 +190,7 @@
       <div class="row">
         <div>
           <label>Google Maps API Key（僅前端使用，務必設定網域限制與 API 限制）</label>
-          <input id="apiKey" placeholder="格式：AIzaSyA-1234567890abcdefgHIJKLMNopqrstu" />
+          <input id="apiKey" placeholder="API Key" />
         </div>
       </div>
       <div class="row">
@@ -246,6 +259,7 @@
     <div class="card">
       <h3>路徑輸出</h3>
       <div class="links" id="outLinks"></div>
+      <div id="log" class="muted small" style="margin-top:8px; white-space:pre-wrap;"></div>
     </div>
 
     <div class="card">
@@ -261,21 +275,41 @@
             <li>機車模式在部分地區尚未全面開放，若呼叫失敗會自動回到汽車模式。</li>
           </ul>
         </li>
-        
         <li>
-          .csv 店點檔案檔作為輸入檔案，需要將 .xlvs 店面檔案先轉檔，並只保留需要的點；預設不存在標題列，故若欄位位置不同，需要調整索引。
+          .csv 店點檔案檔作為輸入檔案，需要將 .xlvs 店面檔案先轉檔。
+          <ul>
+          <li>保留需要的店點。</li>
+          <li>預設不存在標題列，若欄位位置不同，需要調整索引。</li>
           <details>
             <summary>範例</summary>
             <img src="csv_example.png" alt="範例圖片" width="600">
           </details>
+          </ul>
         </li>
       </ul>
     </div>
-
   </div>
 
   <script>
-    // ---------- 工具 ----------
+    // ---------- 限制 ---------- //
+    const MAX_FILE_SIZE = 2 * 1024 * 1024;
+    const MAX_ROWS = 5000;
+
+    async function handleCsvFile(file) {
+      if (!file) return;
+      if (file.size > MAX_FILE_SIZE) {
+        alert('CSV 檔案過大（上限 2MB）');
+        return;
+      }
+      const text = await file.text();
+      const parsed = Papa.parse(text, { skipEmptyLines: true });
+      const rows = parsed.data.slice(0, MAX_ROWS);
+    }
+    if (typeof GOOGLE_API_KEY !== 'undefined' && GOOGLE_API_KEY.trim()) {
+      console.warn('請勿在前端硬碼 Google API Key！');
+    }
+
+    // ---------- 工具 ---------- //
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
     function log(msg, cls = "") {
@@ -596,16 +630,20 @@
         avoidTolls
       };
       const { urls, names } = splitUrlsAndNames(origin, destination, wpsSorted, maxUrl, urlOpts);
-      const out = document.getElementById('outLinks');
-      out.innerHTML = '';
 
       // 建立所有 route 的超連結
+      let routesWrap = document.getElementById('routeLinks');
+      if (!routesWrap) {
+        routesWrap = document.createElement('div');
+        routesWrap.id = 'routeLinks';
+        routesWrap.className = 'links';
+      }
+      routesWrap.innerHTML = '';
       urls.forEach((u, idx) => {
         const a = document.createElement('a');
         a.href = u; a.target = '_blank';
         a.textContent = `route ${idx+1}`;
-        out.appendChild(a);
-        out.appendChild(document.createElement('br'));
+        routesWrap.appendChild(a);
       });
 
       // 建立單一合併內容
@@ -616,13 +654,17 @@
 
       // 提供單一 .txt 下載按鈕
       const btnAll = document.createElement('button');
+      btnAll.id = 'downloadAllBtn';
       btnAll.className = 'secondary';
       btnAll.style.marginTop = '12px';
       btnAll.textContent = '下載 routes.txt';
       btnAll.addEventListener('click', () => downloadText('routes.txt', combinedText));
-      out.appendChild(btnAll);
+      const old = document.getElementById('downloadAllBtn');
+      if (old) old.remove();
 
       log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
+      document.getElementById('log').insertAdjacentElement('afterend', routesWrap);
+      routesWrap.insertAdjacentElement('afterend', btnAll);
             
     });
 

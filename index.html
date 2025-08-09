@@ -222,17 +222,34 @@
       return 2 * R * Math.asin(Math.sqrt(a));
     }
 
-    function buildMapsUrl(origin, destination, wps) {
+    function buildMapsUrl(origin, destination, wps, { mode, avoidHighways, avoidTolls }) {
       const base = "https://www.google.com/maps/dir/?api=1";
-      const params = {
-        origin, destination,
-        travelmode: "driving",
-        avoid: "highways|tolls",
-        dirflg: "m", // two-wheeler flag in URL
-      };
-      if (wps && wps.length) params.waypoints = wps.join("|");
-      const enc = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-      return `${base}&${enc}`;
+      const params = new URLSearchParams();
+
+      params.set("origin", origin);
+      params.set("destination", destination);
+
+      // TWO_WHEELER → dirflg=m | others → travelmode
+      if (mode === "TWO_WHEELER") {
+        params.set("dirflg", "m");
+        // 同時仍保留 driving 可提升相容性
+        params.set("travelmode", "driving");
+      } else if (mode === "DRIVE") {
+        params.set("travelmode", "driving");
+      } else if (mode === "BICYCLE") {
+        params.set("travelmode", "bicycling");
+      } else if (mode === "WALK") {
+        params.set("travelmode", "walking");
+      }
+
+      // avoid
+      const avoid = [];
+      if (avoidHighways) avoid.push("highways");
+      if (avoidTolls)    avoid.push("tolls");
+      if (avoid.length) params.set("avoid", avoid.join("|"));
+      if (wps && wps.length) params.set("waypoints", wps.join("|"));
+
+      return `${base}&${params.toString()}`;
     }
 
     // ★ 讀 CSV：多編碼自動偵測（避免亂碼）
@@ -379,15 +396,24 @@
       return idx.slice(0, waypoints.length);
     }
 
-    function splitUrlsAndNames(origin, destination, wpsSorted, maxWpUrl) {
+    function splitUrlsAndNames(origin, destination, wpsSorted, maxWpUrl, opts) {
       const urls = [], names = [];
       let start = origin; let i = 0; const n = wpsSorted.length;
       while (i < n) {
         const seg = wpsSorted.slice(i, i + maxWpUrl);
-        const end = (i + maxWpUrl < n) ? seg[seg.length - 1][0] : destination;
-        const waypointsForUrl = end !== destination ? seg.slice(0, -1).map(([p]) => p) : seg.map(([p]) => p);
-        urls.push(buildMapsUrl(start, end, waypointsForUrl));
-        names.push(seg.map(([_, nm]) => nm));
+        const isLastChunk = (i + maxWpUrl >= n);
+        const end = isLastChunk ? destination : seg[seg.length - 1][0];
+        let segWps = (isLastChunk ? seg : seg.slice(0, -1)).map(([p]) => p);
+        if (segWps.length && segWps[0] === start) {
+          segWps = segWps.slice(1);
+        }
+        const url = buildMapsUrl(start, end, segWps, opts);
+        urls.push(url);
+        const segNames = (isLastChunk ? seg : seg.slice(0, -1)).map(([, nm]) => nm);
+        if (segNames.length && wpsSorted[i][0] === start) {
+          segNames.shift();
+        }
+        names.push(segNames);
         start = end;
         i += maxWpUrl;
       }
@@ -491,7 +517,12 @@
       // 防呆對齊
       order = order.slice(0, wpsUnique.length);
       const wpsSorted = order.map(i => wpsUnique[i]);
-      const { urls, names } = splitUrlsAndNames(origin, destination, wpsSorted, maxUrl);
+      const urlOpts = {
+        mode: travelMode,
+        avoidHighways,
+        avoidTolls
+      };
+      const { urls, names } = splitUrlsAndNames(origin, destination, wpsSorted, maxUrl, urlOpts);
       const out = document.getElementById('outLinks');
       out.innerHTML = '';
 
@@ -552,6 +583,7 @@
   </script>
 </body>
 </html>
+
 
 
 

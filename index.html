@@ -13,6 +13,7 @@
       --details-bg:#ffffff; --details-border:#dee2e6;
       --ok:#0f9d58; --error:#d93025;
       --btn-hover:#e6e9ef;
+      --container-pad: clamp(12px, 3vw, 20px);
     }
     html[data-theme="dark"]{
       --bg:#0b0f19; --panel:#121826; --border:#273255;
@@ -26,7 +27,11 @@
     /* ========= 基本佈局 ========= */
     html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
       font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
-    .wrap{max-width:980px;margin:24px auto;padding:0 16px}
+    .wrap{
+      max-width:980px;
+      margin:24px auto;
+      padding-inline: var(--container-pad);
+    }
     h1{font-weight:700;font-size:22px;margin:0 0 12px}
     p.lead{color:var(--muted);margin:0 0 16px}
 
@@ -81,19 +86,20 @@
 
     /* ========= navbar 區 ========= */
     .navbar {
+      inset-inline: 0;
+      z-index: 1000;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
-      height: 56px;
+      height: clamp(56px, 8svh, 70px); /* 高度隨視窗自適應 */
+      padding-inline: clamp(12px, 5vw, 48px); /* 內距隨視窗自適應 */
       background: var(--panel);
-      
+      border-bottom: 1px solid var(--border);
     }
-    .navbar-left,
-    .navbar-right {
+    .navbar-left, .navbar-right {
       display: flex;
       align-items: center;
-      gap: 0;
+      gap: clamp(6px, 1.5vw, 14px);  /* 按鈕與品牌間距也自適應 */
     }
     .navbar-brand {
       font-weight: 700;
@@ -157,16 +163,16 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 </head>
 <body>
+  <nav class="navbar">
+    <div class="navbar-left">
+      <span class="navbar-brand">跑店路線最佳化</span>
+    </div>
+    <div class="navbar-right">
+      <button id="themeToggle" type="button" class="btn">暗色</button> <!-- 主題切換 -->
+      <a class="btn" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX" target="_blank" rel="noopener">GitHub</a> <!-- GitHub 聯結 -->
+    </div>
+  </nav>
   <div class="wrap">
-    <nav class="navbar">
-      <div class="navbar-left">
-        <span class="navbar-brand">跑店路線最佳化</span>
-      </div>
-      <div class="navbar-right">
-        <button id="themeToggle" type="button" class="btn">暗色</button> <!-- 主題切換 -->
-        <a class="btn" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX" target="_blank" rel="noopener">GitHub</a> <!-- GitHub 聯結 -->
-      </div>
-    </nav>
     <div class="card grid">
       <div class="row">
         <div>

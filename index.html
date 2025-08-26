@@ -313,6 +313,9 @@
     // ---------- 工具 ---------- //
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+    // ★ 台灣地名字形正規化：「臺」→「台」
+    const normalizeTW = (s) => (s ?? '').replace(/臺/g, '台');
+
     function log(msg, cls = "") {
       const el = document.getElementById('log');
       const line = document.createElement('div');
@@ -334,6 +337,10 @@
       const base = "https://www.google.com/maps/dir/?api=1";
       const params = new URLSearchParams();
 
+      // 正規化使用者輸入的起終點
+      origin = normalizeTW(origin);
+      destination = normalizeTW(destination);
+      
       params.set("origin", origin);
       params.set("destination", destination);
 
@@ -385,7 +392,7 @@
     async function textSearchLatLng(apiKey, query) {
       const url = "https://places.googleapis.com/v1/places:searchText";
       const body = {
-        textQuery: `${query} 台灣`,
+        textQuery: `${normalizeTW(query)} 台灣`,
         regionCode: "TW",
         maxResultCount: 1,
         languageCode: "zh-TW",
@@ -407,7 +414,7 @@
     // ★ Geocoding：加上 language 與 ", 台灣"
     async function geocodeLatLng(apiKey, query) {
       const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
-      url.searchParams.set('address', `${query} , 台灣`);
+      url.searchParams.set('address', `${normalizeTW(query)} , 台灣`);
       url.searchParams.set('region', 'tw');
       url.searchParams.set('language', 'zh-TW');
       url.searchParams.set('key', apiKey);
@@ -421,14 +428,17 @@
 
     // ★ Robust geocode（地址 → TextSearch → 店名 geocode）
     async function robustGeocode(apiKey, name, addr) {
+      const nameN = normalizeTW(name);
+      const addrN = normalizeTW(addr);
+      
       let addrLL = null;
-      if (addr && addr.trim()) addrLL = await geocodeLatLng(apiKey, addr);
+      if (addrN && addrN.trim()) addrLL = await geocodeLatLng(apiKey, addrN);
       if (addrLL) return addrLL;
 
-      const textLL = await textSearchLatLng(apiKey, `${name} ${addr}`.trim());
+      const textLL = await textSearchLatLng(apiKey, `${nameN} ${addrN}`.trim());
       if (textLL) return textLL;
 
-      const nameLL = await geocodeLatLng(apiKey, `${name} , 台灣`);
+      const nameLL = await geocodeLatLng(apiKey, `${nameN} , 台灣`);
       if (!nameLL) return null;
 
       return nameLL;
@@ -455,8 +465,8 @@
     async function computeOptimizedOrder(apiKey, origin, destination, waypoints, travelMode, avoidHighways, avoidTolls) {
       const endpoint = "https://routes.googleapis.com/directions/v2:computeRoutes";
       const body = {
-        origin:      { address: `${origin} , 台灣` },
-        destination: { address: `${destination} , 台灣` },
+        origin:      { address: `${normalizeTW(origin)} , 台灣` },
+        destination: { address: `${normalizeTW(destination)} , 台灣` },
         intermediates: waypoints.map(([ll]) => {
           const [lat, lng] = ll.split(',').map(Number);
           return { location: { latLng: { latitude: lat, longitude: lng } } };
@@ -505,6 +515,8 @@
     }
 
     function splitUrlsAndNames(origin, destination, wpsSorted, maxWpUrl, opts) {
+      origin = normalizeTW(origin);
+      destination = normalizeTW(destination);
       const urls = [], names = [];
       let start = origin; let i = 0; const n = wpsSorted.length;
       while (i < n) {
@@ -540,8 +552,8 @@
       const apiKey = document.getElementById('apiKey').value.trim();
       if (!apiKey) return alert('請先貼上 API Key');
 
-      const origin = document.getElementById('origin').value.trim();
-      const destination = document.getElementById('destination').value.trim();
+      const origin = normalizeTW(document.getElementById('origin').value.trim());
+      const destination = normalizeTW(document.getElementById('destination').value.trim());
       const colName = parseInt(document.getElementById('colName').value, 10) || 0;
       const colAddr = parseInt(document.getElementById('colAddr').value, 10) || 2;
       const maxApi = Math.max(1, Math.min(23, parseInt(document.getElementById('maxApi').value, 10) || 23));
@@ -568,9 +580,10 @@
       const stores = [];
       for (const r of rows) {
         const nameRaw = (r[colName] ?? '').toString().trim();
-        const addr = (r[colAddr] ?? '').toString().trim();
-        if (!nameRaw || !addr) continue;
+        const addrRaw  = (r[colAddr] ?? '').toString().trim();
+        if (!nameRaw || !addrRaw) continue;
         const name = nameRaw.startsWith('全聯福利中心') ? nameRaw : `全聯福利中心 ${nameRaw}店`;
+        const addr = normalizeTW(addrRaw);
         stores.push([name, addr]);
         if (stores.length >= maxApi) break;
       }

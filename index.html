@@ -377,7 +377,7 @@
         try {
           const dec = new TextDecoder(enc, { fatal: false });
           const text = dec.decode(new Uint8Array(buf));
-          const bad = (text.match(/\uFFFD/g) || []).length; //   的數量
+          const bad = (text.match(/\uFFFD/g) || []).length; // 替換字元的數量
           if (bad < best.bad) best = { text, enc, bad };
           if (bad === 0 && /[\u4E00-\u9FFF]/.test(text)) { // 無替換字元且有中文字
             best = { text, enc, bad };

@@ -296,10 +296,12 @@ button.secondary { width: 100%; margin-top: 18px !important; background: var(--p
 
 @media (max-width: 900px) {
   .setup-layout, .field-row.two, .field-row.three, .action-line, .result-header { grid-template-columns: 1fr; }
-  .input-sheet, .instruction-sheet { padding-inline: 0; border-right: 0; }
+  .input-sheet, .instruction-sheet { padding-inline: 18px; border-right: 0; }
   .instruction-sheet { border-top: 1px solid var(--line); }
   .field-row > * + * { border-left: 0; border-top: 1px solid var(--line); }
-  .field-row .field-line, .inline-options { padding-left: 0; }
+  .field-row .field-line, .inline-options { padding-inline: 18px; }
+  .field-line.full { padding-inline: 18px; }
+  .action-line .field-line { padding-inline: 18px; }
   .primary-action { width: 100%; }
   .result-actions { grid-column: 1; grid-row: auto; align-items: start; }
   .route-manifest li { grid-template-columns: 1fr; gap: 6px; }

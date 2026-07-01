@@ -5,6 +5,9 @@ if (typeof GOOGLE_API_KEY !== 'undefined' && GOOGLE_API_KEY.trim()) {
 const CSV_ENCODINGS = ['utf-8', 'big5-hkscs', 'big5', 'cp950', 'utf-16le', 'utf-16be', 'iso-8859-1'];
 const GEOCODE_DELAY_MS = 120;
 const DEDUPE_DISTANCE_M = 50;
+const MAX_ROUTES_INTERMEDIATES = 23;
+const DEFAULT_TOTAL_STOP_LIMIT = 60;
+const MAX_TOTAL_STOP_LIMIT = 120;
 const DEFAULT_ORIGIN = '7-ELEVEN 統客門市';
 const DEFAULT_DESTINATION = '231新北市新店區寶興路49號';
 
@@ -45,7 +48,7 @@ function readOptions() {
     destination: normalizeTW($('destination').value.trim() || DEFAULT_DESTINATION),
     colName: parseInt($('colName').value, 10) || 0,
     colAddr: parseInt($('colAddr').value, 10) || 2,
-    maxApi: clampNumber($('maxApi').value, 1, 23, 23),
+    maxApi: clampNumber($('maxApi').value, 1, MAX_TOTAL_STOP_LIMIT, DEFAULT_TOTAL_STOP_LIMIT),
     maxUrl: clampNumber($('maxUrl').value, 1, 8, 8),
     travelMode: $('mode').value,
     avoidHighways: $('avoidHighways').checked,
@@ -62,6 +65,77 @@ function haversine(lat1, lon1, lat2, lon2) {
   const a = Math.sin(dphi / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dlambda / 2) ** 2;
   return 2 * earthRadiusM * Math.asin(Math.sqrt(a));
+}
+
+function parseLatLng(latLng) {
+  const [latitude, longitude] = latLng.split(',').map(Number);
+  return { latitude, longitude };
+}
+
+function makeWaypoint(value) {
+  if (/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(value)) {
+    return { location: { latLng: parseLatLng(value) } };
+  }
+  return { address: `${normalizeTW(value)} , 台灣` };
+}
+
+function sortWaypointsNearestNeighbor(waypoints) {
+  if (waypoints.length <= 2) return [...waypoints];
+  const remaining = [...waypoints];
+  const sorted = [remaining.shift()];
+
+  while (remaining.length) {
+    const lastPoint = parseLatLng(sorted[sorted.length - 1][0]);
+    let bestIndex = 0;
+    let bestDistance = Infinity;
+
+    remaining.forEach(([latLng], index) => {
+      const point = parseLatLng(latLng);
+      const distance = haversine(lastPoint.latitude, lastPoint.longitude, point.latitude, point.longitude);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = index;
+      }
+    });
+
+    sorted.push(remaining.splice(bestIndex, 1)[0]);
+  }
+
+  return sorted;
+}
+
+async function optimizeWaypointBatches(apiKey, origin, destination, waypoints, travelMode, avoidHighways, avoidTolls) {
+  const coarseOrder = sortWaypointsNearestNeighbor(waypoints);
+  const sorted = [];
+  let batchOrigin = origin;
+  let batchCount = 0;
+
+  for (let i = 0; i < coarseOrder.length; i += MAX_ROUTES_INTERMEDIATES) {
+    const batch = coarseOrder.slice(i, i + MAX_ROUTES_INTERMEDIATES);
+    batchCount += 1;
+    log(`🧭 最佳化第 ${batchCount} 批：${batch.length} 個中繼點`);
+
+    if (batch.length < 2) {
+      sorted.push(...batch);
+      batchOrigin = batch[batch.length - 1]?.[0] || batchOrigin;
+      continue;
+    }
+
+    const order = await computeOptimizedOrder(
+      apiKey,
+      batchOrigin,
+      destination,
+      batch,
+      travelMode,
+      avoidHighways,
+      avoidTolls,
+    );
+    const batchSorted = order.length ? order.map((index) => batch[index]).filter(Boolean) : batch;
+    sorted.push(...batchSorted);
+    batchOrigin = batchSorted[batchSorted.length - 1][0];
+  }
+
+  return { sorted, batchCount };
 }
 
 function buildMapsUrl(origin, destination, waypoints, { mode, avoidHighways, avoidTolls }) {
@@ -217,12 +291,9 @@ function dedupeClosePoints(waypoints, thresholdM = DEDUPE_DISTANCE_M) {
 
 async function computeOptimizedOrder(apiKey, origin, destination, waypoints, travelMode, avoidHighways, avoidTolls) {
   const body = {
-    origin: { address: `${normalizeTW(origin)} , 台灣` },
-    destination: { address: `${normalizeTW(destination)} , 台灣` },
-    intermediates: waypoints.map(([latLng]) => {
-      const [latitude, longitude] = latLng.split(',').map(Number);
-      return { location: { latLng: { latitude, longitude } } };
-    }),
+    origin: makeWaypoint(origin),
+    destination: makeWaypoint(destination),
+    intermediates: waypoints.map(([latLng]) => ({ location: { latLng: parseLatLng(latLng) } })),
     travelMode,
     optimizeWaypointOrder: true,
     routeModifiers: { avoidHighways, avoidTolls },
@@ -360,10 +431,11 @@ async function runRouteGeneration() {
     return alert('有效中繼點不足（多數座標重疊）。請檢查 CSV 內容與地址。');
   }
 
-  log('🧭 呼叫 Routes API 以最佳化中繼點順序 ...');
-  let order;
+  log(`🧭 先做距離粗排序，再以每批最多 ${MAX_ROUTES_INTERMEDIATES} 個中繼點呼叫 Routes API ...`);
+  let sortedWaypoints;
+  let batchCount = 0;
   try {
-    order = await computeOptimizedOrder(
+    ({ sorted: sortedWaypoints, batchCount } = await optimizeWaypointBatches(
       options.apiKey,
       options.origin,
       options.destination,
@@ -371,25 +443,18 @@ async function runRouteGeneration() {
       options.travelMode,
       options.avoidHighways,
       options.avoidTolls,
-    );
+    ));
   } catch (error) {
     log(error.message, 'error');
     return alert('Routes API 失敗，請查看 Log');
   }
-
-  if (!order.length) {
-    log('⚠️ 仍未取得最佳化索引，改用原順序輸出。', 'error');
-    order = uniqueWaypoints.map((_, index) => index);
-  }
-
-  const sortedWaypoints = order.slice(0, uniqueWaypoints.length).map((index) => uniqueWaypoints[index]);
   const { urls, names } = splitUrlsAndNames(options.origin, options.destination, sortedWaypoints, options.maxUrl, {
     mode: options.travelMode,
     avoidHighways: options.avoidHighways,
     avoidTolls: options.avoidTolls,
   });
 
-  $('resultSummary').textContent = `完成：讀到 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，產生 ${urls.length} 段 Google Maps 路線。`;
+  $('resultSummary').textContent = `完成：讀到 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，分成 ${batchCount} 批最佳化，產生 ${urls.length} 段 Google Maps 路線。`;
   log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
   renderRouteLinks(urls, names);
 }

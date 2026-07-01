@@ -72,9 +72,9 @@
 
           <div class="field-row three">
             <div class="field-line">
-              <label for="maxApi">店點上限</label>
-              <input id="maxApi" type="number" min="1" max="23" value="23" />
-              <small>Routes API 單次最多 23 個中繼點。</small>
+              <label for="maxApi">店點讀取上限</label>
+              <input id="maxApi" type="number" min="1" max="120" value="60" />
+              <small>系統會自動每 23 個中繼點分批最佳化。</small>
             </div>
             <div class="field-line">
               <label for="maxUrl">每段停靠點</label>
@@ -137,7 +137,7 @@
               <ul>
                 <li>API Key 需設定 HTTP 來源限制與 API 限制。</li>
                 <li>需允許 Routes API、Places API、Geocoding API。</li>
-                <li>Routes API 單次最多 25 個點，含起點與終點，所以最多 23 個中繼點。</li>
+                <li>Routes API 單批最多 23 個中繼點；大量店點會自動分批處理。</li>
                 <li>機車模式部分地區可能尚未支援，失敗時會自動改用汽車模式。</li>
               </ul>
             </article>

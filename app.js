@@ -17,9 +17,15 @@ function log(message, className = '') {
   $('log').appendChild(line);
 }
 
+function setView(view) {
+  document.body.dataset.view = view;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function clearOutput() {
   $('log').innerHTML = '';
   $('outLinks').innerHTML = '';
+  $('resultSummary').textContent = '正在產生路線，請留在此頁查看處理紀錄。';
   $('routeLinks')?.remove();
   $('downloadAllBtn')?.remove();
 }
@@ -329,6 +335,7 @@ async function runRouteGeneration() {
   if (!options.file) return alert('請先選擇 CSV 檔');
 
   clearOutput();
+  setView('results');
   log('📥 讀取 .csv ...');
 
   const csvText = await readCsvSmart(options.file);
@@ -374,11 +381,14 @@ async function runRouteGeneration() {
     avoidTolls: options.avoidTolls,
   });
 
+  $('resultSummary').textContent = `完成：讀到 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，產生 ${urls.length} 段 Google Maps 路線。`;
   log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
   renderRouteLinks(urls, names);
 }
 
 $('runBtn').addEventListener('click', runRouteGeneration);
+$('rerunBtn').addEventListener('click', runRouteGeneration);
+$('backToSetupBtn').addEventListener('click', () => setView('setup'));
 
 (function initTheme() {
   const root = document.documentElement;

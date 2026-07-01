@@ -246,7 +246,7 @@ async function computeOptimizedOrder(apiKey, origin, destination, waypoints, tra
 
   const indexes = (await response.json()).routes?.[0]?.optimizedIntermediateWaypointIndex || [];
   if (!indexes.length) {
-    log('⚠️ Routes API 未提供最佳化索引，多半是座標重疊/過近，將直接使用原順序。', 'error');
+    log('⚠️ Routes API 未提供最佳化索引，可能是座標重疊/過近，將直接使用原順序。', 'error');
     return body.intermediates.map((_, index) => index);
   }
   if (indexes.length !== waypoints.length) {
@@ -389,7 +389,7 @@ async function runRouteGeneration() {
     avoidTolls: options.avoidTolls,
   });
 
-  $('resultSummary').textContent = `完成：讀到 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，產生 ${urls.length} 段 Google Maps 路線。`;
+  $('resultSummary').textContent = `完成：成功讀取 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，產生 ${urls.length} 段 Google Maps 路線。`;
   log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
   renderRouteLinks(urls, names);
 }

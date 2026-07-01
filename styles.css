@@ -1,152 +1,346 @@
-    /* ========= 主題變數：預設淺色，html[data-theme="dark"] 為深色 ========= */
-    :root{
-      --bg:#f8f9fa; --panel:#ffffff; --border:#dee2e6;
-      --muted:#6c757d; --text:#212529; --accent:#0d6efd;
-      --link:#0d6efd; --tag-bg:#e9f2ff; --tag-fg:#0d6efd;
-      --details-bg:#ffffff; --details-border:#dee2e6;
-      --ok:#0f9d58; --error:#d93025;
-      --btn-hover:#e6e9ef;
-      --container-pad: clamp(12px, 3vw, 20px);
-    }
-    html[data-theme="dark"]{
-      --bg:#0b0f19; --panel:#121826; --border:#273255;
-      --muted:#9aa4b2; --text:#eef2ff; --accent:#50b0ff;
-      --link:#9ed0ff; --tag-bg:#182235; --tag-fg:#9fb5d1;
-      --details-bg:#0f1524; --details-border:#273255;
-      --ok:#9cffd1; --error:#ff8b8b;
-      --btn-hover:#1c2333;
-    }
+:root {
+  --bg: #f4f1ea;
+  --bg-grid: rgba(43, 64, 49, 0.07);
+  --panel: #fffcf4;
+  --panel-strong: #fff8ea;
+  --text: #20251f;
+  --muted: #657067;
+  --faint: #8e978e;
+  --border: #d9d0bf;
+  --border-strong: #b8ad9b;
+  --accent: #2f6846;
+  --accent-strong: #234f35;
+  --accent-soft: #e5efdf;
+  --amber: #b96d22;
+  --ok: #187247;
+  --error: #b9412f;
+  --link: #235b3a;
+  --shadow: 0 18px 50px rgb(53 45 31 / 12%);
+  --shadow-soft: 0 8px 24px rgb(53 45 31 / 8%);
+  --radius: 18px;
+  --radius-sm: 10px;
+  --container-pad: clamp(16px, 4vw, 40px);
+}
 
-    /* ========= 基本佈局 ========= */
-    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
-      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
-    .wrap{
-      max-width:980px;
-      margin:24px auto;
-      padding-inline: var(--container-pad);
-    }
-    h1{font-weight:700;font-size:22px;margin:0 0 12px}
-    p.lead{color:var(--muted);margin:0 0 16px}
+html[data-theme="dark"] {
+  --bg: #11140f;
+  --bg-grid: rgba(194, 211, 184, 0.07);
+  --panel: #171b15;
+  --panel-strong: #1d241b;
+  --text: #edf1e8;
+  --muted: #aab3a3;
+  --faint: #7d8978;
+  --border: #30382c;
+  --border-strong: #4b5644;
+  --accent: #8dbc73;
+  --accent-strong: #b7d89b;
+  --accent-soft: #263321;
+  --amber: #df9b52;
+  --ok: #8bd9a8;
+  --error: #ee927f;
+  --link: #a9d18f;
+  --shadow: 0 18px 50px rgb(0 0 0 / 28%);
+  --shadow-soft: 0 8px 24px rgb(0 0 0 / 22%);
+}
 
-    .card{background:var(--panel);border:1px solid var(--border);border-radius:3px;
-      box-shadow:0 4px 10px rgb(0 0 0 / 10%);padding:16px;margin:16px 0;}
+* { box-sizing: border-box; }
 
-    /* ========= 表單 ========= */
-    label{font-size:13px;color:var(--muted)}
-    /* 不影響 checkbox 的通用輸入元件樣式 */
-    input:not([type="checkbox"]), select, button{
-      box-sizing:border-box;width:100%;padding:8px 10px;min-height:36px;
-      border-radius:3px;border:1px solid var(--border);background:#fff;color:var(--text);
-    }
-    html[data-theme="dark"] input:not([type="checkbox"]),
-    html[data-theme="dark"] select,
-    html[data-theme="dark"] button{
-      background:#0e1421;color:var(--text);border-color:#283246;
-    }
-    button{cursor:pointer;background:var(--accent);color:#fff;border:none;font-weight:600}
-    button.secondary{background:#e9ecef;color:var(--text);border:1px solid var(--border)}
-    html[data-theme="dark"] button.secondary{background:#1d273b;border-color:#2a3551}
-    input[type="file"]{padding:8px}
+html, body {
+  margin: 0;
+  min-height: 100%;
+  color: var(--text);
+  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+  background:
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+    linear-gradient(var(--bg-grid) 1px, transparent 1px),
+    radial-gradient(circle at 18% 8%, rgba(47, 104, 70, .14), transparent 32rem),
+    var(--bg);
+  background-size: 48px 48px, 48px 48px, auto, auto;
+}
 
-    /* 自適應網格：避免互相遮擋 */
-    .row,.row3,.row4{display:grid;gap:12px}
-    .row {grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-    .row3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-    .row4{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+button, input, select { font: inherit; }
 
-    /* ========= checkbox 區 ========= */
-    /* 放在欄位內：上面可加 <div class="muted small">其他選項</div> */
-    .flex{display:flex;align-items:center;gap:16px;min-height:36px;flex-wrap:nowrap}
-    .flex .cb{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-    .flex .cb span{font-size:12px;line-height:1;color:var(--text);transform: translateY(11px);}
-    /* checkbox 本體不吃通用 input 樣式 */
-    input[type="checkbox"]{width:16px;height:16px;margin:0;padding:0;min-height:0;vertical-align:middle;accent-color:var(--accent)}
-    .flex input[type="checkbox"]{transform:translateY(11px);}
+a { color: var(--link); }
 
-    /* ========= 其他 ========= */
-    .muted{color:var(--muted);font-size:13px}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
-    .links a{display:inline-block;margin:8px 8px 0 0;color:var(--link);text-decoration:none}
-    .tag{display:inline-block;padding:2px 8px;border-radius:3px;background:var(--tag-bg);color:var(--tag-fg);font-size:12px;margin-left:6px}
-    details{background:var(--details-bg);border:1px solid var(--details-border);border-radius:3px;padding:10px 12px}
-    summary{cursor:pointer}
-    .error{color:var(--error)} .ok{color:var(--ok)}
-    .grid{display:grid;gap:10px} .colspan2{grid-column:span 2}
-    .small{font-size:12px}
-    .hr{height:1px;background:var(--border);margin:12px 0}
-    .kbd{padding:0 6px;border-radius:3px;background:rgba(0,0,0,.06);border:1px solid var(--border)}
-    html[data-theme="dark"] .kbd{background:#0b1221;border-color:#28324e}
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px var(--container-pad);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+}
 
-    /* ========= navbar 區 ========= */
-    .navbar {
-      inset-inline: 0;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: clamp(56px, 8svh, 70px); /* 高度隨視窗自適應 */
-      padding-inline: clamp(12px, 5vw, 48px); /* 內距隨視窗自適應 */
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-    }
-    .navbar-left, .navbar-right {
-      display: flex;
-      align-items: center;
-      gap: clamp(6px, 1.5vw, 14px);  /* 按鈕與品牌間距也自適應 */
-    }
-    .navbar-brand {
-      font-weight: 700;
-      font-size: 18px;
-      color: var(--text);
-    }
-    .navbar a {
-      color: inherit;
-      text-decoration: none;
-    }
-    .navbar button {
-      min-height: 36px;
-      padding: 6px 14px;
-      border-radius: 3px;
-      background: var(--panel);
-      color: var(--text);
-      border: none;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-    }
-    .navbar .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      box-sizing:border-box;
-      height:36px;
-      padding:0 14px;
-      line-height:1;
-      width:auto; 
-      border:none;
-      border-radius:3px;
-      background:var(--panel);
-      color:var(--text);
-      font-size:14px;
-      font-weight:500;
-      cursor:pointer;
-      text-decoration:none;
-      -webkit-appearance:none;
-      appearance:none;
-    }
-    .navbar .btn:hover{
-      background: var(--btn-hover);
-      color: var(--text);
-    }
-    /* color-mix */
-    @supports not (background: color-mix(in srgb, black 50%, white 50%)){
-      .navbar .btn:hover{ background:#cfd5dd; }                /* 淺色主題的灰 */
-      html[data-theme="dark"] .navbar .btn:hover{ background:#1f2635; } /* 深色主題的灰 */
-    }
-    .navbar .btn:focus-visible{
-      outline:2px solid color-mix(in srgb, var(--text) 40%, transparent);
-      outline-offset:2px;
-    }
+.navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
 
-    /* ========= 範例圖片 ========= */
-    details img{ display:block; max-width:100%; width:auto; height:auto; }
+.brand-mark {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--panel);
+  background: var(--accent);
+  border-radius: 50%;
+  font-weight: 800;
+  letter-spacing: -.04em;
+}
+
+.brand-title, .brand-subtitle { display: block; }
+.brand-title { font-weight: 760; letter-spacing: -.02em; }
+.brand-subtitle { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+
+.navbar-right { display: flex; align-items: center; gap: 8px; }
+
+.btn, .primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.btn.ghost {
+  width: auto;
+  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  color: var(--text);
+}
+
+.btn:hover, .primary-action:hover { transform: translateY(-1px); border-color: var(--border-strong); }
+
+.wrap {
+  width: min(1220px, 100%);
+  margin: 0 auto;
+  padding: 28px var(--container-pad) 52px;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.hero {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: clamp(18px, 4vw, 48px);
+  padding: clamp(22px, 5vw, 46px);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+h1, h2, h3, p { margin-top: 0; }
+h1 { max-width: 760px; margin-bottom: 12px; font-size: clamp(30px, 6vw, 58px); line-height: .98; letter-spacing: -.055em; }
+h2 { margin-bottom: 2px; font-size: 18px; letter-spacing: -.02em; }
+h3 { margin-bottom: 10px; font-size: 15px; }
+.lead { max-width: 680px; margin-bottom: 0; color: var(--muted); font-size: 17px; }
+
+.hero-note {
+  min-width: 156px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 2px;
+  padding: 22px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+}
+
+.hero-note span, .hero-note small { color: var(--muted); }
+.hero-note strong { font-size: 54px; line-height: 1; letter-spacing: -.06em; color: var(--accent); }
+
+.workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.control-panel, .output-panel, .guide-panel { padding: clamp(18px, 3vw, 28px); }
+.output-panel { position: sticky; top: 88px; }
+.guide-panel { margin-top: 18px; }
+
+.section-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+.section-heading.compact { margin-bottom: 16px; }
+.section-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.step {
+  flex: 0 0 auto;
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.field-grid { display: grid; gap: 14px; margin-top: 14px; }
+.field-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.field-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.field { display: grid; gap: 7px; }
+.field.full { margin-top: 0; }
+
+label, .label-like {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: .02em;
+}
+
+input:not([type="checkbox"]), select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel-strong) 88%, white 12%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+html[data-theme="dark"] input:not([type="checkbox"]),
+html[data-theme="dark"] select {
+  background: color-mix(in srgb, var(--panel-strong) 88%, black 12%);
+}
+
+input:not([type="checkbox"]):focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.field small, .muted { color: var(--muted); font-size: 12px; }
+.options-field { align-content: end; gap: 10px; }
+.cb { display: inline-flex; align-items: center; gap: 8px; color: var(--text); }
+input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+
+.upload-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.primary-action {
+  min-height: 52px;
+  padding: 0 22px;
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.primary-action:hover { background: var(--accent-strong); }
+
+.empty-state {
+  display: grid;
+  gap: 10px;
+  place-items: center;
+  min-height: 178px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel-strong) 66%, transparent);
+}
+.empty-state:empty { display: none; }
+.empty-state p { margin: 0; }
+.empty-icon { font-size: 26px; color: var(--accent); }
+
+.run-log {
+  margin-top: 14px;
+  color: var(--muted);
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
+.run-log:empty { display: none; }
+.ok { color: var(--ok); }
+.error { color: var(--error); }
+
+.links a {
+  display: block;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  color: var(--link);
+  text-decoration: none;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  border-radius: var(--radius-sm);
+}
+button.secondary {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--text);
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+ul { margin: 0; padding-left: 1.15rem; color: var(--muted); }
+li + li { margin-top: 6px; }
+details { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel-strong); }
+summary { cursor: pointer; font-weight: 700; }
+details img { display: block; max-width: 100%; width: auto; height: auto; margin-top: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+
+@media (max-width: 900px) {
+  .hero, .workspace-layout, .field-grid.two, .field-grid.three, .guide-grid, .upload-strip { grid-template-columns: 1fr; }
+  .hero { display: grid; }
+  .output-panel { position: static; }
+  .primary-action { width: 100%; }
+}
+
+@media (max-width: 560px) {
+  .navbar { align-items: flex-start; }
+  .brand-subtitle { display: none; }
+  .navbar-right { gap: 6px; }
+  .btn.ghost { min-height: 36px; padding-inline: 12px; }
+  .wrap { padding-top: 18px; }
+}
+
+@supports not (background: color-mix(in srgb, black 50%, white 50%)) {
+  .navbar { background: var(--bg); }
+  input:not([type="checkbox"]), select, .btn.ghost { background: var(--panel); }
+}

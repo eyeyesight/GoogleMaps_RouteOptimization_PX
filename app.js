@@ -27,7 +27,7 @@ function setView(view) {
 function clearOutput() {
   $('log').innerHTML = '';
   $('outLinks').innerHTML = '';
-  $('resultSummary').textContent = '正在產生路線，請留在此頁查看處理紀錄。';
+  $('resultSummary').textContent = '正在產出路線，請留在此頁查看處理紀錄。';
   $('routeLinks')?.remove();
   $('downloadAllBtn')?.remove();
 }
@@ -389,8 +389,8 @@ async function runRouteGeneration() {
     avoidTolls: options.avoidTolls,
   });
 
-  $('resultSummary').textContent = `完成：成功讀取 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，產生 ${urls.length} 段 Google Maps 路線。`;
-  log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
+  $('resultSummary').textContent = `完成：成功讀取 ${stores.length} 筆店點，定位 ${uniqueWaypoints.length} 筆，產出 ${urls.length} 段 Google Maps 路線。`;
+  log(`✅ 共產出 ${urls.length} 條路線並整合為單一 routes.txt。`);
   renderRouteLinks(urls, names);
 }
 

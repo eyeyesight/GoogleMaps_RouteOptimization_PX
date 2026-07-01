@@ -5,6 +5,8 @@ if (typeof GOOGLE_API_KEY !== 'undefined' && GOOGLE_API_KEY.trim()) {
 const CSV_ENCODINGS = ['utf-8', 'big5-hkscs', 'big5', 'cp950', 'utf-16le', 'utf-16be', 'iso-8859-1'];
 const GEOCODE_DELAY_MS = 120;
 const DEDUPE_DISTANCE_M = 50;
+const DEFAULT_ORIGIN = '7-ELEVEN 統客門市';
+const DEFAULT_DESTINATION = '231新北市新店區寶興路49號';
 
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,9 +19,15 @@ function log(message, className = '') {
   $('log').appendChild(line);
 }
 
+function setView(view) {
+  document.body.dataset.view = view;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function clearOutput() {
   $('log').innerHTML = '';
   $('outLinks').innerHTML = '';
+  $('resultSummary').textContent = '正在產生路線，請留在此頁查看處理紀錄。';
   $('routeLinks')?.remove();
   $('downloadAllBtn')?.remove();
 }
@@ -33,8 +41,8 @@ function clampNumber(value, min, max, fallback) {
 function readOptions() {
   return {
     apiKey: $('apiKey').value.trim(),
-    origin: normalizeTW($('origin').value.trim()),
-    destination: normalizeTW($('destination').value.trim()),
+    origin: normalizeTW($('origin').value.trim() || DEFAULT_ORIGIN),
+    destination: normalizeTW($('destination').value.trim() || DEFAULT_DESTINATION),
     colName: parseInt($('colName').value, 10) || 0,
     colAddr: parseInt($('colAddr').value, 10) || 2,
     maxApi: clampNumber($('maxApi').value, 1, 23, 23),
@@ -295,17 +303,25 @@ function downloadText(filename, content) {
 }
 
 function renderRouteLinks(urls, names) {
-  const routesWrap = document.createElement('div');
+  const routesWrap = document.createElement('ol');
   routesWrap.id = 'routeLinks';
-  routesWrap.className = 'links';
+  routesWrap.className = 'route-manifest';
 
   urls.forEach((url, index) => {
+    const routeItem = document.createElement('li');
+    const meta = document.createElement('span');
     const link = document.createElement('a');
+    const stops = document.createElement('small');
+
+    meta.textContent = `route ${String(index + 1).padStart(2, '0')}`;
     link.href = url;
     link.target = '_blank';
-    link.textContent = `路線${index + 1}`;
-    link.style.display = 'block';
-    routesWrap.appendChild(link);
+    link.rel = 'noopener';
+    link.textContent = `開啟第 ${index + 1} 段 Google Maps 路線`;
+    stops.textContent = `${(names[index] || []).length} 個停靠點`;
+
+    routeItem.append(meta, link, stops);
+    routesWrap.appendChild(routeItem);
   });
 
   const combinedText = urls.map((url, index) => {
@@ -315,12 +331,10 @@ function renderRouteLinks(urls, names) {
   const downloadButton = document.createElement('button');
   downloadButton.id = 'downloadAllBtn';
   downloadButton.className = 'secondary';
-  downloadButton.style.marginTop = '12px';
   downloadButton.textContent = '下載 routes.txt';
   downloadButton.addEventListener('click', () => downloadText('routes.txt', combinedText));
 
-  $('log').insertAdjacentElement('afterend', routesWrap);
-  routesWrap.insertAdjacentElement('afterend', downloadButton);
+  $('outLinks').append(routesWrap, downloadButton);
 }
 
 async function runRouteGeneration() {
@@ -329,6 +343,7 @@ async function runRouteGeneration() {
   if (!options.file) return alert('請先選擇 CSV 檔');
 
   clearOutput();
+  setView('results');
   log('📥 讀取 .csv ...');
 
   const csvText = await readCsvSmart(options.file);
@@ -374,11 +389,14 @@ async function runRouteGeneration() {
     avoidTolls: options.avoidTolls,
   });
 
+  $('resultSummary').textContent = `完成：讀到 ${stores.length} 筆店點，成功定位 ${uniqueWaypoints.length} 筆，產生 ${urls.length} 段 Google Maps 路線。`;
   log(`✅ 共產生 ${urls.length} 條路線並整合為單一 routes.txt。`);
   renderRouteLinks(urls, names);
 }
 
 $('runBtn').addEventListener('click', runRouteGeneration);
+$('rerunBtn').addEventListener('click', runRouteGeneration);
+$('backToSetupBtn').addEventListener('click', () => setView('setup'));
 
 (function initTheme() {
   const root = document.documentElement;

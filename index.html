@@ -22,13 +22,13 @@
   <!-- PapaParse for CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 </head>
-<body>
+<body data-view="setup">
   <nav class="navbar">
     <a class="navbar-brand" href="#top" aria-label="回到頁面頂端">
       <span class="brand-mark">PX</span>
       <span>
         <span class="brand-title">跑店路線最佳化</span>
-        <span class="brand-subtitle">PX route planner</span>
+        <span class="brand-subtitle">Route planning worksheet</span>
       </span>
     </a>
     <div class="navbar-right">
@@ -37,148 +37,158 @@
     </div>
   </nav>
 
-  <main id="top" class="wrap">
-    <header class="hero panel">
-      <div>
-        <p class="eyebrow">Store run planning · Taiwan</p>
-        <h1>把全聯店點整理成可執行的 Google Maps 路線</h1>
-        <p class="lead">上傳 CSV、解析店點座標、用 Routes API 排序，最後輸出分段的 Google Maps 連結與 routes.txt。</p>
+  <main id="top" class="page-shell">
+    <section class="view setup-view" aria-label="輸入與說明">
+      <header class="view-header">
+        <p class="eyebrow">Setup · CSV · Google Maps API</p>
+        <h1>先整理店點與限制，再產生路線。</h1>
+        <p class="lead">這一頁只做輸入與確認。完成後會切到路線輸出頁，保留 routes、log 與下載按鈕。</p>
+      </header>
+
+      <div class="setup-layout">
+        <form class="input-sheet" onsubmit="return false;">
+          <div class="sheet-title">
+              <div>
+              <h2>路線輸入</h2>
+              <p>API key 只在瀏覽器端使用，正式使用前仍請設定網域與 API 限制。</p>
+            </div>
+          </div>
+
+          <div class="field-line full">
+            <label for="apiKey">Google Maps API Key</label>
+            <input id="apiKey" placeholder="貼上受限的測試或正式 API Key" autocomplete="off" />
+          </div>
+
+          <div class="field-row two">
+            <div class="field-line">
+              <label for="origin">起點</label>
+              <input id="origin" placeholder="例如：7-ELEVEN 統客門市" />
+            </div>
+            <div class="field-line">
+              <label for="destination">終點</label>
+              <input id="destination" placeholder="例如：231新北市新店區寶興路49號" />
+            </div>
+          </div>
+
+          <div class="field-row three">
+            <div class="field-line">
+              <label for="maxApi">店點上限</label>
+              <input id="maxApi" type="number" min="1" max="23" value="23" />
+              <small>Routes API 單次最多 23 個中繼點。</small>
+            </div>
+            <div class="field-line">
+              <label for="maxUrl">每段停靠點</label>
+              <input id="maxUrl" type="number" min="1" max="8" value="8" />
+              <small>Google Maps app 會依此分段。</small>
+            </div>
+            <div class="field-line">
+              <label for="mode">交通工具</label>
+              <select id="mode">
+                <option value="TWO_WHEELER" selected>機車</option>
+                <option value="DRIVE">汽車</option>
+                <option value="BICYCLE">自行車</option>
+                <option value="WALK">步行</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-row three compact-row">
+            <div class="field-line">
+              <label for="colName">店名欄位</label>
+              <input id="colName" type="number" min="0" value="0" />
+            </div>
+            <div class="field-line">
+              <label for="colAddr">地址欄位</label>
+              <input id="colAddr" type="number" min="0" value="2" />
+            </div>
+            <div class="inline-options" aria-label="路線偏好">
+              <span>偏好</span>
+              <label class="cb" for="avoidHighways">
+                <input id="avoidHighways" type="checkbox" checked />
+                <span>避開高速公路</span>
+              </label>
+              <label class="cb" for="avoidTolls">
+                <input id="avoidTolls" type="checkbox" checked />
+                <span>避開收費路段</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="action-line">
+            <div class="field-line file-field">
+              <label for="csvFile">CSV 店點檔案</label>
+              <input id="csvFile" type="file" accept=".csv" />
+              <small>無標題列；預設第 0 欄店名、第 2 欄地址。</small>
+            </div>
+            <button id="runBtn" class="primary-action" type="button">產生路線</button>
+          </div>
+        </form>
+
+        <aside class="instruction-sheet">
+          <div class="sheet-title">
+              <div>
+              <h2>操作註記</h2>
+              <p>這些限制會影響輸出結果，不另外做成裝飾卡片。</p>
+            </div>
+          </div>
+          <div class="notes-grid compact">
+            <article>
+              <h3>API</h3>
+              <ul>
+                <li>API Key 需設定 HTTP 來源限制與 API 限制。</li>
+                <li>需允許 Routes API、Places API、Geocoding API。</li>
+                <li>Routes API 單次最多 25 個點，含起點與終點，所以最多 23 個中繼點。</li>
+                <li>機車模式部分地區可能尚未支援，失敗時會自動改用汽車模式。</li>
+              </ul>
+            </article>
+            <article>
+              <h3>CSV</h3>
+              <ul>
+                <li>目前以全聯福利中心店點格式為主。</li>
+                <li>若來源是 Excel，請先轉成 CSV。</li>
+                <li>保留需要跑的店點；如果欄位不同，調整店名與地址欄位索引。</li>
+              </ul>
+              <details>
+                <summary>查看 CSV 範例截圖</summary>
+                <img src="csv_example.png" alt="CSV 範例圖片" width="600">
+              </details>
+            </article>
+          </div>
+        </aside>
       </div>
-      <div class="hero-note" aria-label="目前限制摘要">
-        <span>Routes API</span>
-        <strong>23</strong>
-        <small>單次中繼點上限</small>
-      </div>
-    </header>
-
-    <section class="workspace-layout" aria-label="路線產生工作區">
-      <form class="panel control-panel" onsubmit="return false;">
-        <div class="section-heading">
-          <span class="step">01</span>
-          <div>
-            <h2>輸入與限制</h2>
-            <p>API key 只在瀏覽器端使用；正式使用前請務必設定網域與 API 限制。</p>
-          </div>
-        </div>
-
-        <div class="field full">
-          <label for="apiKey">Google Maps API Key</label>
-          <input id="apiKey" placeholder="貼上受限的測試或正式 API Key" autocomplete="off" />
-        </div>
-
-        <div class="field-grid two">
-          <div class="field">
-            <label for="origin">起點</label>
-            <input id="origin" placeholder="例如：7-ELEVEN 統客門市" />
-          </div>
-          <div class="field">
-            <label for="destination">終點</label>
-            <input id="destination" placeholder="例如：231新北市新店區寶興路49號" />
-          </div>
-        </div>
-
-        <div class="field-grid three">
-          <div class="field">
-            <label for="maxApi">總店點最大筆數</label>
-            <input id="maxApi" type="number" min="1" max="23" value="23" />
-            <small>Routes API 單次最多 23 個中繼點。</small>
-          </div>
-          <div class="field">
-            <label for="maxUrl">每段路徑最大中繼點數</label>
-            <input id="maxUrl" type="number" min="1" max="8" value="8" />
-            <small>Google Maps app 停靠點較少，會自動分段。</small>
-          </div>
-          <div class="field">
-            <label for="mode">交通工具</label>
-            <select id="mode">
-              <option value="TWO_WHEELER" selected>機車</option>
-              <option value="DRIVE">汽車</option>
-              <option value="BICYCLE">自行車</option>
-              <option value="WALK">步行</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field-grid three">
-          <div class="field">
-            <label for="colName">店名欄位索引</label>
-            <input id="colName" type="number" min="0" value="0" />
-            <small>從 0 起算，預設第 0 欄。</small>
-          </div>
-          <div class="field">
-            <label for="colAddr">地址欄位索引</label>
-            <input id="colAddr" type="number" min="0" value="2" />
-            <small>從 0 起算，預設第 2 欄。</small>
-          </div>
-          <div class="field options-field">
-            <span class="label-like">路線偏好</span>
-            <label class="cb" for="avoidHighways">
-              <input id="avoidHighways" type="checkbox" checked />
-              <span>避開高速公路</span>
-            </label>
-            <label class="cb" for="avoidTolls">
-              <input id="avoidTolls" type="checkbox" checked />
-              <span>避開收費路段</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="upload-strip">
-          <div class="field file-field">
-            <label for="csvFile">上傳 .csv 店點檔案</label>
-            <input id="csvFile" type="file" accept=".csv" />
-            <small>無標題列；預設第 0 欄是店名、第 2 欄是地址。</small>
-          </div>
-          <button id="runBtn" class="primary-action" type="button">開始產生路線</button>
-        </div>
-      </form>
-
-      <aside class="panel output-panel">
-        <div class="section-heading compact">
-          <span class="step">02</span>
-          <div>
-            <h2>路徑輸出</h2>
-            <p>產生後會在這裡列出每段 Google Maps 路線。</p>
-          </div>
-        </div>
-        <div class="empty-state" id="outLinks">
-          <span class="empty-icon">↗</span>
-          <p>還沒有路線。填完左側設定並上傳 CSV 後，按下「開始產生路線」。</p>
-        </div>
-        <div id="log" class="run-log"></div>
-      </aside>
     </section>
 
-    <section class="panel guide-panel">
-      <div class="section-heading">
-        <span class="step">03</span>
-        <div>
-          <h2>使用說明與注意事項</h2>
-          <p>這個工具偏向現場跑店使用；輸出會保留 Google Maps app 可開啟的分段路線。</p>
+    <section class="view results-view" aria-label="路線輸出">
+      <header class="view-header result-header">
+        <p class="eyebrow">Results · route sheet</p>
+        <h1>路線輸出</h1>
+        <p id="resultSummary" class="lead">正在等待路線產生。</p>
+        <div class="result-actions">
+          <button id="backToSetupBtn" class="btn" type="button">返回修改設定</button>
+          <button id="rerunBtn" class="btn ghost" type="button">重新產生</button>
+        </div>
+      </header>
+
+      <div class="result-sheet">
+        <div class="sheet-title">
+          <div>
+            <h2>Google Maps 路線</h2>
+            <p>每一段路線可直接開啟；完整文字可下載成 routes.txt。</p>
+          </div>
+        </div>
+        <div class="output-placeholder" id="outLinks">
+          <p>產生過程會顯示在下方 log。完成後，路線連結會出現在這裡。</p>
         </div>
       </div>
-      <div class="guide-grid">
-        <article>
-          <h3>API 與限制</h3>
-          <ul>
-            <li>API Key 需設定 HTTP 來源限制與 API 限制。</li>
-            <li>需允許 Routes API、Places API、Geocoding API。</li>
-            <li>Routes API 單次最多 25 個點，含起點與終點，所以最多 23 個中繼點。</li>
-            <li>機車模式部分地區可能尚未支援，失敗時會自動改用汽車模式。</li>
-          </ul>
-        </article>
-        <article>
-          <h3>CSV 準備</h3>
-          <ul>
-            <li>目前以全聯福利中心店點格式為主。</li>
-            <li>若來源是 Excel，請先轉成 CSV。</li>
-            <li>保留需要跑的店點；如果欄位不同，調整店名與地址欄位索引。</li>
-          </ul>
-          <details>
-            <summary>查看 CSV 範例截圖</summary>
-            <img src="csv_example.png" alt="CSV 範例圖片" width="600">
-          </details>
-        </article>
+
+      <div class="log-sheet">
+        <div class="sheet-title">
+          <div>
+            <h2>處理紀錄</h2>
+            <p>定位、去重、Routes API 與錯誤訊息。</p>
+          </div>
+        </div>
+        <div id="log" class="run-log"></div>
       </div>
     </section>
   </main>

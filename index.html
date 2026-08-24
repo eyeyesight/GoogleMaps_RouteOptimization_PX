@@ -4,8 +4,8 @@
   <!-- Security -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://maps.googleapis.com https://places.googleapis.com;
-    connect-src 'self' https://routes.googleapis.com https://maps.googleapis.com https://places.googleapis.com;
+    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://wps.hereapi.com https://maps.googleapis.com https://places.googleapis.com;
+    connect-src 'self' https://wps.hereapi.com https://maps.googleapis.com https://places.googleapis.com;
     img-src 'self' data:;
     style-src 'self' 'unsafe-inline';
     object-src 'none';
@@ -13,188 +13,700 @@
     frame-ancestors 'none';
   ">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#102019" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="description" content="使用 HERE 排序店點，再輸出可用 Google Maps 機車或汽車導航開啟的分段跑店路線。" />
   <title>跑店路線最佳化（全聯）</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260824" />
+  <link rel="stylesheet" href="styles.css?v=20260824u" />
 
   <!-- PapaParse for CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 </head>
-<body data-view="setup">
-  <nav class="navbar">
+<body data-view="setup" data-tool="route">
+  <a class="skip-link" href="#routeForm">跳到路線設定</a>
+
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="icon-route" viewBox="0 0 24 24">
+      <path d="M5 6.5h7.5a3.5 3.5 0 0 1 0 7H9a3.5 3.5 0 0 0 0 7h10" />
+      <circle cx="5" cy="6.5" r="2.25" />
+      <path d="m16.5 18 2.5 2.5 2.5-2.5" />
+    </symbol>
+    <symbol id="icon-store" viewBox="0 0 24 24">
+      <path d="M4 9.5V21h16V9.5" />
+      <path d="M3 9.5 5 3h14l2 6.5" />
+      <path d="M3 9.5c0 1.5 1 2.5 2.5 2.5S8 11 8 9.5C8 11 9 12 10.5 12S13 11 13 9.5C13 11 14 12 15.5 12S18 11 18 9.5c0 1.5 1 2.5 2.5 2.5" />
+      <path d="M9 21v-5h6v5" />
+    </symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24">
+      <path d="M12 3 4.5 6v5.5c0 4.8 3.2 8.1 7.5 9.5 4.3-1.4 7.5-4.7 7.5-9.5V6L12 3Z" />
+      <path d="m8.8 12 2.1 2.1 4.5-4.5" />
+    </symbol>
+    <symbol id="icon-key" viewBox="0 0 24 24">
+      <circle cx="8" cy="12" r="4" />
+      <path d="M12 12h9m-3 0v3m-3-3v2" />
+    </symbol>
+    <symbol id="icon-pin" viewBox="0 0 24 24">
+      <path d="M20 10c0 5.2-8 11-8 11s-8-5.8-8-11a8 8 0 1 1 16 0Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </symbol>
+    <symbol id="icon-flag" viewBox="0 0 24 24">
+      <path d="M6 22V3" />
+      <path d="M6 4h11l-2 3 2 3H6" />
+    </symbol>
+    <symbol id="icon-sliders" viewBox="0 0 24 24">
+      <path d="M4 7h10M18 7h2M4 17h2m4 0h10" />
+      <circle cx="16" cy="7" r="2" />
+      <circle cx="8" cy="17" r="2" />
+    </symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24">
+      <path d="M6 2h8l4 4v16H6z" />
+      <path d="M14 2v5h5M9 12h6m-6 4h6" />
+    </symbol>
+    <symbol id="icon-map" viewBox="0 0 24 24">
+      <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z" />
+      <path d="M9 3v15m6-12v15" />
+    </symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.5 15.5 5 5" />
+    </symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24">
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <circle cx="4.5" cy="6" r="1" />
+      <circle cx="4.5" cy="12" r="1" />
+      <circle cx="4.5" cy="18" r="1" />
+    </symbol>
+    <symbol id="icon-table" viewBox="0 0 24 24">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 9h18M9 9v11m6-11v11" />
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M4 19h16" />
+    </symbol>
+    <symbol id="icon-external" viewBox="0 0 24 24">
+      <path d="M14 4h6v6M20 4l-9 9" />
+      <path d="M18 13v7H4V6h7" />
+    </symbol>
+    <symbol id="icon-arrow" viewBox="0 0 24 24">
+      <path d="M5 12h14m-5-5 5 5-5 5" />
+    </symbol>
+    <symbol id="icon-turn-right" viewBox="0 0 24 24">
+      <path d="M6 21v-7a6 6 0 0 1 6-6h7" />
+      <path d="m15 4 4 4-4 4" />
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <path d="m5 12 4 4L19 6" />
+    </symbol>
+    <symbol id="icon-scooter" viewBox="0 0 24 24">
+      <circle cx="6" cy="17" r="3" />
+      <circle cx="18" cy="17" r="3" />
+      <path d="M9 17h6l2.5-7H14m-5 7 2.5-8H8M16 7h3" />
+    </symbol>
+    <symbol id="icon-car" viewBox="0 0 24 24">
+      <path d="m4 15 1.5-6h13L20 15v4h-2v-2H6v2H4z" />
+      <path d="m7 9 2-4h6l2 4M7 13h.01M17 13h.01" />
+    </symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24">
+      <path d="m7 10 5 5 5-5" />
+    </symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="app-sidebar" aria-label="工具導覽">
     <a class="navbar-brand" href="#top" aria-label="回到頁面頂端">
-      <span class="brand-mark">PX</span>
-      <span>
-        <span class="brand-title">跑店路線最佳化</span>
-        <span class="brand-subtitle">Route planning worksheet</span>
+      <span class="brand-mark" aria-hidden="true"><img src="favicon.svg?v=20260824" alt="" /></span>
+      <span class="brand-copy">
+        <span class="brand-title">跑店路線</span>
+        <span class="brand-subtitle">Route console</span>
       </span>
     </a>
-    <div class="navbar-right">
-      <button id="themeToggle" type="button" class="btn ghost">暗色</button>
-      <a class="btn ghost" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX" target="_blank" rel="noopener">GitHub</a>
-    </div>
-  </nav>
 
-  <main id="top" class="page-shell">
-    <section class="view setup-view" aria-label="輸入與說明">
-      <header class="view-header">
-        <p class="eyebrow">Setup · CSV · Google Maps API</p>
-        <h1>店點資訊與設定</h1>
-        <p class="lead">輸入店點與確認條件，點選產生路線後會導到路線輸出頁面。</p>
+      <div class="sidebar-section">
+        <p class="sidebar-label">Workspace</p>
+        <div id="toolTabs" class="tool-tabs" role="tablist" aria-label="工具切換">
+          <button id="routeTab" class="tool-tab" type="button" role="tab" aria-label="路線最佳化" aria-selected="true" aria-controls="routeTool" data-icon="route">
+            <svg class="icon" aria-hidden="true"><use href="#icon-route"></use></svg>
+            <span>
+              <strong>路線最佳化</strong>
+              <small>排序與分段</small>
+            </span>
+          </button>
+          <button id="builderTab" class="tool-tab" type="button" role="tab" aria-label="店點建檔" aria-selected="false" aria-controls="builderTool" tabindex="-1" data-icon="builder">
+            <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg>
+            <span>
+              <strong>店點建檔</strong>
+              <small>地址與座標</small>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-meta">
+        <p><span class="status-dot"></span>本機工作階段</p>
+        <small>API Key 僅留在瀏覽器，不寫入檔案。</small>
+      </div>
+    </aside>
+
+    <div class="app-frame">
+      <nav class="navbar" aria-label="主要導覽">
+        <div class="navbar-path">
+          <span>PX Route Workspace</span>
+          <strong class="route-label">路線最佳化</strong>
+          <strong class="builder-label">店點建檔</strong>
+        </div>
+
+        <div class="navbar-context" aria-label="系統狀態">
+          <span class="status-dot"></span>
+          <span>瀏覽器本機執行</span>
+          <span class="context-divider" aria-hidden="true"></span>
+          <span>API Key 不寫入檔案</span>
+        </div>
+
+        <div class="navbar-right">
+          <button id="themeToggle" type="button" class="btn ghost theme-toggle">暗色</button>
+          <a class="btn ghost github-link" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX" target="_blank" rel="noopener">
+            <svg class="icon" aria-hidden="true"><use href="#icon-external"></use></svg>
+            GitHub
+          </a>
+        </div>
+      </nav>
+
+      <main id="top" class="page-shell">
+        <section class="workspace-toolbar" aria-label="工具工作區">
+          <div>
+            <p class="workspace-kicker">Operations / Taiwan</p>
+            <h2 class="route-label">路線最佳化</h2>
+            <h2 class="builder-label">店點建檔</h2>
+          </div>
+          <p class="workspace-note"><span class="workspace-note-mark">200</span> 間店點上限 · Maps waypoint 上限 9</p>
+        </section>
+
+    <div id="routeTool" class="tool-panel route-tool" role="tabpanel" aria-labelledby="routeTab">
+      <section class="view setup-view" aria-label="輸入與說明">
+        <header class="view-header route-hero">
+          <div class="hero-copy">
+            <p class="eyebrow"><span>Route desk</span> CSV · HERE · Google Maps</p>
+            <h1>多個店點，<br />排成能直接出發的路線。</h1>
+            <p class="lead">先用 HERE 的機車或汽車路網排列店點，再依 Google Maps 的限制切成可在手機逐段開啟的導航路線。</p>
+            <ul class="hero-facts" role="list">
+              <li><svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg><span><strong>最多 200 間</strong>單次處理上限</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#icon-route"></use></svg><span><strong>機車或汽車</strong>依任務選擇路網</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#icon-map"></use></svg><span><strong>Maps 分段</strong>手機直接開啟</span></li>
+            </ul>
+          </div>
+
+          <div class="route-visual" aria-hidden="true">
+            <div class="visual-topline">
+              <span class="visual-label"><i></i> Route 01 · Taipei</span>
+              <span class="visual-status">8 stops</span>
+            </div>
+            <div class="map-stage">
+              <svg class="route-map" viewBox="0 0 720 420" role="presentation">
+                <rect class="map-ground" width="720" height="420" />
+
+                <g class="map-blocks">
+                  <rect class="block residential" x="18" y="18" width="142" height="82" rx="5" />
+                  <rect class="block commercial" x="202" y="18" width="198" height="82" rx="5" />
+                  <rect class="block civic" x="442" y="18" width="128" height="82" rx="5" />
+                  <rect class="block residential" x="612" y="18" width="90" height="82" rx="5" />
+                  <rect class="block park" x="18" y="142" width="142" height="118" rx="5" />
+                  <rect class="block residential" x="202" y="142" width="198" height="118" rx="5" />
+                  <rect class="block commercial" x="442" y="142" width="128" height="118" rx="5" />
+                  <rect class="block residential" x="612" y="142" width="90" height="118" rx="5" />
+                  <rect class="block industrial" x="18" y="302" width="142" height="100" rx="5" />
+                  <rect class="block residential" x="202" y="302" width="198" height="100" rx="5" />
+                  <rect class="block civic" x="442" y="302" width="128" height="100" rx="5" />
+                  <rect class="block commercial" x="612" y="302" width="90" height="100" rx="5" />
+                </g>
+
+                <g class="map-buildings">
+                  <rect x="32" y="30" width="46" height="24" rx="2" /><rect x="88" y="30" width="56" height="24" rx="2" /><rect x="32" y="65" width="72" height="22" rx="2" /><rect x="114" y="65" width="30" height="22" rx="2" />
+                  <rect x="216" y="30" width="76" height="24" rx="2" /><rect x="302" y="30" width="82" height="24" rx="2" /><rect x="216" y="65" width="40" height="22" rx="2" /><rect x="266" y="65" width="118" height="22" rx="2" />
+                  <rect x="456" y="30" width="44" height="57" rx="2" /><rect x="510" y="30" width="46" height="24" rx="2" /><rect x="510" y="65" width="46" height="22" rx="2" />
+                  <rect x="626" y="30" width="62" height="24" rx="2" /><rect x="626" y="65" width="62" height="22" rx="2" />
+                  <rect x="216" y="156" width="64" height="36" rx="2" /><rect x="291" y="156" width="93" height="36" rx="2" /><rect x="216" y="204" width="102" height="40" rx="2" /><rect x="329" y="204" width="55" height="40" rx="2" />
+                  <rect x="456" y="156" width="42" height="88" rx="2" /><rect x="510" y="156" width="46" height="38" rx="2" /><rect x="510" y="205" width="46" height="39" rx="2" />
+                  <rect x="626" y="156" width="62" height="38" rx="2" /><rect x="626" y="205" width="62" height="39" rx="2" />
+                  <rect x="32" y="316" width="52" height="72" rx="2" /><rect x="95" y="316" width="49" height="32" rx="2" /><rect x="95" y="359" width="49" height="29" rx="2" />
+                  <rect x="216" y="316" width="76" height="32" rx="2" /><rect x="302" y="316" width="82" height="32" rx="2" /><rect x="216" y="359" width="48" height="29" rx="2" /><rect x="275" y="359" width="109" height="29" rx="2" />
+                  <rect x="456" y="316" width="100" height="72" rx="2" /><rect x="626" y="316" width="62" height="32" rx="2" /><rect x="626" y="359" width="62" height="29" rx="2" />
+                </g>
+
+                <g class="map-park-detail">
+                  <path d="M38 237 C62 182 105 173 141 155" /><path d="M40 166 C74 194 102 225 141 243" />
+                  <circle cx="65" cy="178" r="7" /><circle cx="120" cy="213" r="9" /><circle cx="75" cy="231" r="6" />
+                </g>
+
+                <g class="map-roads">
+                  <path class="road-casing" d="M180 -20V440 M420 -20V440 M590 -20V440 M-20 120H740 M-20 280H740" />
+                  <path class="road-surface" d="M180 -20V440 M420 -20V440 M590 -20V440 M-20 120H740 M-20 280H740" />
+                  <path class="road-center" d="M180 -20V440 M420 -20V440 M590 -20V440 M-20 120H740 M-20 280H740" />
+                </g>
+
+                <g class="road-labels">
+                  <text x="248" y="114">NANJING E. RD.</text>
+                  <text x="470" y="274">CIVIC BLVD.</text>
+                </g>
+
+                <path class="route-path route-path-shadow" d="M60 280H160Q180 280 180 260V140Q180 120 200 120H400Q420 120 420 140V260Q420 280 440 280H570Q590 280 590 260V140Q590 120 610 120H674" />
+                <path class="route-path route-path-active" d="M60 280H160Q180 280 180 260V140Q180 120 200 120H400Q420 120 420 140V260Q420 280 440 280H570Q590 280 590 260V140Q590 120 610 120H674" />
+
+                <g class="route-node node-start" transform="translate(60 280)"><circle r="11" /><circle r="3" /></g>
+                <g class="route-node node-one" transform="translate(180 120)"><circle r="9" /><text y="3">2</text></g>
+                <g class="route-node node-two" transform="translate(420 120)"><circle r="9" /><text y="3">3</text></g>
+                <g class="route-node node-three" transform="translate(420 280)"><circle r="9" /><text y="3">4</text></g>
+                <g class="route-node node-four" transform="translate(590 280)"><circle r="9" /><text y="3">5</text></g>
+                <g class="route-node node-five" transform="translate(590 120)"><circle r="9" /><text y="3">6</text></g>
+                <g class="route-node node-end" transform="translate(674 120)"><circle r="12" /><circle r="4" /></g>
+              </svg>
+              <div class="map-metric"><small>BEST ROUTE</small><strong>32.4 km</strong><span>較原排序少 18%</span></div>
+              <div class="turn-chip">
+                <span class="turn-distance"><small>前方</small><strong>120 公尺</strong></span>
+                <span class="turn-direction"><svg class="icon"><use href="#icon-turn-right"></use></svg><small>右轉</small></span>
+              </div>
+            </div>
+            <div class="visual-summary">
+              <div><small>排序方式</small><strong>Scooter / Car</strong></div>
+              <div><small>這一段</small><strong>08 stops</strong></div>
+              <div class="visual-summary-wide"><small>下一步</small><strong>Open in Google Maps</strong></div>
+            </div>
+          </div>
+        </header>
+
+        <ol class="workflow-ribbon" aria-label="產生路線流程">
+          <li><span>01</span><div><strong>貼上金鑰</strong><small>Google 與 HERE</small></div></li>
+          <li><span>02</span><div><strong>設定起訖</strong><small>地址或座標</small></div></li>
+          <li><span>03</span><div><strong>匯入 CSV</strong><small>最多 200 間店</small></div></li>
+          <li><span>04</span><div><strong>取得路線</strong><small>分段開啟 Maps</small></div></li>
+        </ol>
+
+        <div class="setup-layout">
+          <form id="routeForm" class="input-sheet spotlight-card" onsubmit="return false;">
+            <div class="sheet-title">
+              <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-sliders"></use></svg></span>
+              <div>
+                <p class="sheet-kicker">Route configuration</p>
+                <h2>路線輸入</h2>
+                <p>依序完成憑證、起訖點、路線規則與 CSV 檔案設定。</p>
+              </div>
+              <span class="privacy-badge"><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg>僅在本頁使用</span>
+            </div>
+            <input id="maxApi" type="hidden" value="200" />
+
+            <section class="form-section">
+              <header class="form-section-head">
+                <span class="step-marker" aria-hidden="true"><span class="step-index">01</span><span class="step-icon"><svg class="icon"><use href="#icon-key"></use></svg></span></span>
+                <div>
+                  <h3>連線憑證</h3>
+                  <p>貼上 Google 與 HERE 金鑰</p>
+                </div>
+              </header>
+              <div class="field-row two key-row">
+                <div class="field-line">
+                  <label for="apiKey">Google API Key</label>
+                  <div class="input-wrap has-icon">
+                    <svg class="field-icon icon" aria-hidden="true"><use href="#icon-key"></use></svg>
+                    <input id="apiKey" type="password" placeholder="定位缺少座標的店點" autocomplete="off" spellcheck="false" aria-describedby="apiKeyHelp" />
+                    <button class="visibility-toggle" type="button" data-toggle-visibility="apiKey" aria-label="顯示 Google Maps API Key"><span aria-hidden="true"></span></button>
+                  </div>
+                  <small id="apiKeyHelp">需允許 Places API 與 Geocoding API。</small>
+                </div>
+                <div class="field-line">
+                  <label for="hereApiKey">HERE API Key</label>
+                  <div class="input-wrap has-icon">
+                    <svg class="field-icon icon" aria-hidden="true"><use href="#icon-key"></use></svg>
+                    <input id="hereApiKey" type="password" placeholder="Waypoint Sequencing key" autocomplete="off" spellcheck="false" aria-describedby="hereApiKeyHelp" />
+                    <button class="visibility-toggle" type="button" data-toggle-visibility="hereApiKey" aria-label="顯示 HERE API Key"><span aria-hidden="true"></span></button>
+                  </div>
+                  <small id="hereApiKeyHelp">正式使用前請確認 Optimization entitlement。</small>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <header class="form-section-head">
+                <span class="step-marker" aria-hidden="true"><span class="step-index">02</span><span class="step-icon"><svg class="icon"><use href="#icon-pin"></use></svg></span></span>
+                <div>
+                  <h3>起點與終點</h3>
+                  <p>設定出發與收尾位置</p>
+                </div>
+              </header>
+              <div class="field-row two">
+                <div class="field-line">
+                  <label for="origin">起點</label>
+                  <div class="input-wrap has-icon">
+                    <svg class="field-icon icon" aria-hidden="true"><use href="#icon-pin"></use></svg>
+                    <input id="origin" value="24.9732927,121.5492187" placeholder="店名、地址或緯度,經度" />
+                  </div>
+                </div>
+                <div class="field-line">
+                  <label for="destination">終點</label>
+                  <div class="input-wrap has-icon">
+                    <svg class="field-icon icon" aria-hidden="true"><use href="#icon-flag"></use></svg>
+                    <input id="destination" value="24.9732927,121.5492187" placeholder="店名、地址或緯度,經度" />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <header class="form-section-head">
+                <span class="step-marker" aria-hidden="true"><span class="step-index">03</span><span class="step-icon"><svg class="icon"><use href="#icon-sliders"></use></svg></span></span>
+                <div>
+                  <h3>路線規則</h3>
+                  <p>選擇分段與交通偏好</p>
+                </div>
+              </header>
+              <div class="field-row route-rule-row">
+                <div class="field-line stop-count-field">
+                  <div class="field-label-row">
+                    <label for="maxUrl">每段停靠點</label>
+                    <span>上限 9</span>
+                  </div>
+                  <div class="stepper-group" data-stepper>
+                    <button type="button" data-step="-1" aria-label="減少每段停靠點">−</button>
+                    <div class="stepper-value">
+                      <input id="maxUrl" type="number" min="1" max="9" value="8" readonly />
+                      <span>點</span>
+                    </div>
+                    <button type="button" data-step="1" aria-label="增加每段停靠點">＋</button>
+                  </div>
+                </div>
+
+                <fieldset class="field-line rule-choice-field">
+                  <legend>交通工具</legend>
+                  <div class="glide-group" data-glide-group>
+                    <label>
+                      <input type="radio" name="travelMode" value="TWO_WHEELER" checked />
+                      <span><svg class="icon" aria-hidden="true"><use href="#icon-scooter"></use></svg>機車</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="travelMode" value="DRIVE" />
+                      <span><svg class="icon" aria-hidden="true"><use href="#icon-car"></use></svg>汽車</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="field-line rule-choice-field">
+                  <legend>避開高速公路</legend>
+                  <div class="glide-group" data-glide-group>
+                    <label><input type="radio" name="avoidHighways" value="false" /><span>允許</span></label>
+                    <label><input id="avoidHighways" type="radio" name="avoidHighways" value="true" checked /><span>避開</span></label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="field-line rule-choice-field">
+                  <legend>避開收費路段</legend>
+                  <div class="glide-group" data-glide-group>
+                    <label><input type="radio" name="avoidTolls" value="false" /><span>允許</span></label>
+                    <label><input id="avoidTolls" type="radio" name="avoidTolls" value="true" checked /><span>避開</span></label>
+                  </div>
+                </fieldset>
+              </div>
+            </section>
+
+            <section class="form-section source-section">
+              <header class="form-section-head">
+                <span class="step-marker" aria-hidden="true"><span class="step-index">04</span><span class="step-icon"><svg class="icon"><use href="#icon-file"></use></svg></span></span>
+                <div>
+                  <h3>匯入店點</h3>
+                  <p>選擇「店點建檔」輸出的標準 CSV</p>
+                </div>
+              </header>
+              <div class="action-line">
+                <div class="field-line file-field">
+                  <label for="csvFile">CSV 店點檔案</label>
+                  <div class="file-drop" data-file-drop>
+                    <svg class="file-drop-icon icon" aria-hidden="true"><use href="#icon-file"></use></svg>
+                    <div class="file-drop-copy">
+                      <strong>拖曳 CSV 到這裡</strong>
+                      <span>或點一下選擇電腦中的檔案</span>
+                    </div>
+                    <span class="file-name" data-file-name>尚未選擇檔案</span>
+                    <input id="csvFile" type="file" accept=".csv,text/csv" />
+                  </div>
+                  <small>若來源是 Excel，請先另存為 UTF-8 CSV。</small>
+                </div>
+                <div class="action-cta">
+                  <p><span class="status-dot"></span>資料就緒後即可開始排序</p>
+                  <button id="runBtn" class="primary-action" type="button">
+                    <span>產生路線</span>
+                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                  </button>
+                </div>
+              </div>
+            </section>
+          </form>
+
+          <aside class="instruction-sheet spotlight-card" aria-label="操作註記">
+            <div class="readiness-card">
+              <span class="readiness-icon"><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg></span>
+              <div>
+                <p>Preflight check</p>
+                <h2>開始前確認</h2>
+              </div>
+              <span class="readiness-state">3 項</span>
+              <ul role="list">
+                <li><svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>兩組 API Key 已啟用</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>CSV 由「店點建檔」產生</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>店點不超過 200 間</li>
+              </ul>
+            </div>
+
+            <div class="sheet-title aside-title">
+              <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg></span>
+              <div>
+                <p class="sheet-kicker">Reference notes</p>
+                <h2>操作註記</h2>
+                <p>只保留開始前真正需要知道的資訊。</p>
+              </div>
+            </div>
+
+            <div class="notes-grid compact">
+              <article class="note-card">
+                <span class="note-index">API</span>
+                <h3>連線與權限</h3>
+                <p class="note-copy">需啟用 Google Places／Geocoding 與 HERE Waypoints Sequence；大型路線與方案限制請看完整文件。</p>
+                <a class="note-link" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX#readme" target="_blank" rel="noopener">查看專案 README.md <span aria-hidden="true">↗</span></a>
+              </article>
+
+              <article class="note-card">
+                <span class="note-index">CSV</span>
+                <h3>標準店點檔案</h3>
+                <p class="note-copy">不必自行理解欄位索引；先到「店點建檔」確認店址，再下載可直接匯入的標準 CSV。</p>
+                <button class="note-link" type="button" data-open-builder>前往店點建檔 <span aria-hidden="true">→</span></button>
+              </article>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view results-view" aria-label="路線輸出">
+        <header class="view-header result-header">
+          <div class="result-header-copy">
+            <p class="eyebrow"><span>Results</span> Route sheet</p>
+            <h1>路線輸出</h1>
+            <p id="resultSummary" class="lead" aria-live="polite">正在等待路線產生。</p>
+          </div>
+          <div class="result-actions">
+            <button id="backToSetupBtn" class="btn" type="button">返回修改設定</button>
+            <button id="rerunBtn" class="btn ghost" type="button">重新產生</button>
+          </div>
+        </header>
+
+        <div class="results-layout">
+          <div class="result-sheet spotlight-card">
+            <div class="sheet-title">
+              <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-map"></use></svg></span>
+              <div>
+                <p class="sheet-kicker">Navigation segments</p>
+                <h2>Google Maps 路線</h2>
+                <p>每一段路線可直接點選連結開啟，完整文字可下載成 routes.txt。</p>
+              </div>
+            </div>
+            <div class="output-placeholder" id="outLinks">
+              <div class="empty-state">
+                <span><svg class="icon" aria-hidden="true"><use href="#icon-route"></use></svg></span>
+                <strong>尚未建立路線</strong>
+                <p>產生過程會顯示在右側處理紀錄；完成後，路線連結會出現在這裡。</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="log-sheet spotlight-card">
+            <div class="sheet-title">
+              <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg></span>
+              <div>
+                <p class="sheet-kicker">Live process</p>
+                <h2>處理紀錄</h2>
+                <p>定位店點、近距離警告、HERE 排序與錯誤訊息。</p>
+              </div>
+            </div>
+            <div class="terminal-window" role="region" aria-label="route-optimizer.log 處理紀錄">
+              <div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i><span>route-optimizer.log</span></div>
+              <div id="log" class="run-log" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section id="builderTool" class="tool-panel builder-tool view" role="tabpanel" aria-labelledby="builderTab">
+      <header class="view-header builder-hero">
+        <div class="hero-copy">
+          <p class="eyebrow"><span>Store resolver</span> Google Places</p>
+          <h1>店點建檔</h1>
+          <p class="lead">只輸入店名，唯一結果會直接建檔；只有遇到同名或鄰近門市時，才需要人工選擇 Google 候選。</p>
+          <ul class="hero-facts" role="list">
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg><span><strong>唯一候選直入</strong>不多做一次選擇</span></li>
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-pin"></use></svg><span><strong>多候選再選</strong>核對地址與位置</span></li>
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg><span><strong>標準 CSV</strong>主程式直接使用</span></li>
+          </ul>
+        </div>
+
+        <div class="resolver-visual" aria-hidden="true">
+          <div class="resolver-visual-head"><span>店名解析流程</span><strong>Google Places</strong></div>
+          <div class="resolver-source">
+            <span class="resolver-source-icon"><svg class="icon"><use href="#icon-search"></use></svg></span>
+            <div><small>輸入店名</small><strong>南港旗艦</strong></div>
+            <span class="resolver-source-state"><i></i>已讀取</span>
+          </div>
+          <div class="resolver-flow"><span></span><em>解析</em><span></span></div>
+          <div class="resolver-output">
+            <div class="resolver-output-head"><span>唯一候選</span><strong><svg class="icon"><use href="#icon-check"></use></svg>已確認</strong></div>
+            <h3>全聯福利中心 南港旗艦店</h3>
+            <p>115 台北市南港區南港路二段 20 巷 5 號 B1</p>
+            <div class="resolver-coordinates"><code>25.0547902</code><code>121.6055174</code><svg class="icon"><use href="#icon-pin"></use></svg></div>
+          </div>
+          <div class="resolver-footer"><span><i></i> 標準 CSV · 5 欄</span><strong>READY</strong></div>
+        </div>
       </header>
 
-      <div class="setup-layout">
-        <form class="input-sheet" onsubmit="return false;">
+      <ol class="workflow-ribbon builder-workflow" aria-label="店點建檔流程">
+        <li><span>01</span><div><strong>輸入店名</strong><small>每行一間</small></div></li>
+        <li><span>02</span><div><strong>確認候選</strong><small>多候選時才選擇</small></div></li>
+        <li><span>03</span><div><strong>下載 CSV</strong><small>地址與座標齊全</small></div></li>
+      </ol>
+
+      <div class="setup-layout builder-layout">
+        <form class="input-sheet spotlight-card" onsubmit="return false;">
           <div class="sheet-title">
+            <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg></span>
+            <div>
+              <p class="sheet-kicker">Store input</p>
+              <h2>輸入店名</h2>
+              <p>每行一間，最多 200 間；系統會為每間店保留最多 3 個候選供人工確認。</p>
+            </div>
+          </div>
+
+          <section class="form-section">
+            <header class="form-section-head">
+              <span class="step-marker" aria-hidden="true"><span class="step-index">01</span><span class="step-icon"><svg class="icon"><use href="#icon-key"></use></svg></span></span>
               <div>
-              <h2>路線輸入</h2>
-              <p>API key 只在瀏覽器端使用，正式使用前仍請設定網域與 API 限制。</p>
+                <h3>Places API</h3>
+                <p>貼上用於查詢候選的金鑰</p>
+              </div>
+            </header>
+            <div class="field-line full">
+              <label for="builderApiKey">Google Maps API Key</label>
+              <div class="input-wrap has-icon">
+                <svg class="field-icon icon" aria-hidden="true"><use href="#icon-key"></use></svg>
+                <input id="builderApiKey" type="password" placeholder="需允許 Places API (New)" autocomplete="off" spellcheck="false" />
+                <button class="visibility-toggle" type="button" data-toggle-visibility="builderApiKey" aria-label="顯示 Google Maps API Key"><span aria-hidden="true"></span></button>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div class="field-line full">
-            <label for="apiKey">Google Maps API Key</label>
-            <input id="apiKey" placeholder="貼上受限的測試或正式 API Key" autocomplete="off" />
-          </div>
+          <section class="form-section">
+            <header class="form-section-head">
+              <span class="step-marker" aria-hidden="true"><span class="step-index">02</span><span class="step-icon"><svg class="icon"><use href="#icon-list"></use></svg></span></span>
+              <div>
+                <h3>店名清單</h3>
+                <p>每行輸入一間門市</p>
+              </div>
+            </header>
+            <div class="field-line full textarea-field">
+              <label for="storeNames">每行一間店</label>
+              <div class="textarea-wrap">
+                <textarea id="storeNames" rows="14" placeholder="南港旗艦&#10;淡水沙崙&#10;林口信義"></textarea>
+                <span class="textarea-counter">最多 200 間</span>
+              </div>
+            </div>
+          </section>
 
-          <div class="field-row two">
-            <div class="field-line">
-              <label for="origin">起點</label>
-              <input id="origin" placeholder="例如：7-ELEVEN 統客門市" />
+          <div class="builder-actions">
+            <div class="builder-action-controls">
+              <button id="resolveStoresBtn" class="builder-action builder-action-primary" type="button">
+                <span>解析店點</span>
+                <span class="builder-action-icon"><svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg></span>
+              </button>
+              <button id="downloadStoresBtn" class="builder-action builder-action-secondary download-button" type="button" disabled>
+                <span class="builder-action-icon"><svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg></span>
+                <span>下載標準 CSV</span>
+              </button>
             </div>
-            <div class="field-line">
-              <label for="destination">終點</label>
-              <input id="destination" placeholder="例如：231新北市新店區寶興路49號" />
-            </div>
-          </div>
-
-          <div class="field-row three">
-            <div class="field-line">
-              <label for="maxApi">店點上限</label>
-              <input id="maxApi" type="number" min="1" max="23" value="23" />
-              <small>單次至多 23 個中繼點。</small>
-            </div>
-            <div class="field-line">
-              <label for="maxUrl">每段停靠點</label>
-              <input id="maxUrl" type="number" min="1" max="8" value="8" />
-              <small>Google Maps app 將依此分段。</small>
-            </div>
-            <div class="field-line">
-              <label for="mode">交通工具</label>
-              <select id="mode">
-                <option value="TWO_WHEELER" selected>機車</option>
-                <option value="DRIVE">汽車</option>
-                <option value="BICYCLE">自行車</option>
-                <option value="WALK">步行</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="field-row three compact-row">
-            <div class="field-line">
-              <label for="colName">店名欄位</label>
-              <input id="colName" type="number" min="0" value="0" />
-            </div>
-            <div class="field-line">
-              <label for="colAddr">地址欄位</label>
-              <input id="colAddr" type="number" min="0" value="2" />
-            </div>
-            <div class="inline-options" aria-label="路線偏好">
-              <span>偏好</span>
-              <label class="cb" for="avoidHighways">
-                <input id="avoidHighways" type="checkbox" checked />
-                <span>避開高速公路</span>
-              </label>
-              <label class="cb" for="avoidTolls">
-                <input id="avoidTolls" type="checkbox" checked />
-                <span>避開收費路段</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="action-line">
-            <div class="field-line file-field">
-              <label for="csvFile">CSV 店點檔案</label>
-              <input id="csvFile" type="file" accept=".csv" />
-              <small>無標題列</small>
-              <small>預設：第 0 欄店名、第 2 欄地址</small>
-            </div>
-            <button id="runBtn" class="primary-action" type="button">產生路線</button>
           </div>
         </form>
 
-        <aside class="instruction-sheet">
-          <div class="sheet-title">
-              <div>
-              <h2>操作註記</h2>
-              <p>工具已依 Google Maps 限制調整輸出結果。</p>
+        <aside class="instruction-sheet spotlight-card">
+          <div class="readiness-card builder-readiness">
+            <span class="readiness-icon"><svg class="icon" aria-hidden="true"><use href="#icon-table"></use></svg></span>
+            <div>
+              <p>Output schema</p>
+              <h2>5 欄標準格式</h2>
+            </div>
+            <span class="readiness-state">UTF-8</span>
+            <div class="schema-preview" aria-hidden="true">
+              <span>店名</span><span>縣市</span><span>完整地址</span><span>緯度</span><span>經度</span>
             </div>
           </div>
+
+          <div class="sheet-title aside-title">
+            <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg></span>
+            <div>
+              <p class="sheet-kicker">Export notes</p>
+              <h2>輸出規格</h2>
+              <p>選定候選後會輸出 UTF-8 CSV。</p>
+            </div>
+          </div>
+
           <div class="notes-grid compact">
-            <article>
-              <h3>API</h3>
+            <article class="note-card">
+              <span class="note-index">01</span>
+              <h3>欄位</h3>
               <ul>
-                <li>API Key 需設定 HTTP 來源限制與 API 限制。</li>
-                <li>需允許 Routes API、Places API、Geocoding API。</li>
-                <li>Routes API 單次最多 25 個點，含起點與終點，所以最多 23 個中繼點。</li>
-                <li>機車模式部分地區可能尚未支援，失敗時會自動改用汽車模式。</li>
+                <li>第 0 欄：店名</li>
+                <li>第 1 欄：縣市</li>
+                <li>第 2 欄：完整地址</li>
+                <li>第 3 欄：緯度</li>
+                <li>第 4 欄：經度</li>
               </ul>
             </article>
-            <article>
-              <h3>CSV</h3>
+            <article class="note-card">
+              <span class="note-index">02</span>
+              <h3>確認方式</h3>
               <ul>
-                <li>目前以全聯福利中心店點格式為主。</li>
-                <li>若來源是 Excel，請先轉成 CSV。</li>
-                <li>保留需要跑的店點，若欄位不同，需調整店名與地址欄位索引。</li>
+                <li>同名或近似門市請使用候選下拉選單。</li>
+                <li>可點「確認位置」在 Google Maps 核對。</li>
+                <li>所有店點成功解析後才可下載。</li>
               </ul>
-              <details>
-                <summary>查看 CSV 範例截圖</summary>
-                <img src="csv_example.png" alt="CSV 範例圖片" width="600">
-              </details>
             </article>
           </div>
         </aside>
       </div>
-    </section>
 
-    <section class="view results-view" aria-label="路線輸出">
-      <header class="view-header result-header">
-        <p class="eyebrow">Results · route sheet</p>
-        <h1>路線輸出</h1>
-        <p id="resultSummary" class="lead">正在等待路線產生。</p>
-        <div class="result-actions">
-          <button id="backToSetupBtn" class="btn" type="button">返回修改設定</button>
-          <button id="rerunBtn" class="btn ghost" type="button">重新產生</button>
-        </div>
-      </header>
-
-      <div class="result-sheet">
+      <div class="result-sheet builder-result-sheet spotlight-card">
         <div class="sheet-title">
+          <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-table"></use></svg></span>
           <div>
-            <h2>Google Maps 路線</h2>
-            <p>每一段路線可直接點選連結開啟，而完整文字可下載成 routes.txt。</p>
+            <p class="sheet-kicker">Candidate review</p>
+            <h2>解析結果</h2>
+            <p id="builderStatus" aria-live="polite">尚未開始解析。</p>
           </div>
         </div>
-        <div class="output-placeholder" id="outLinks">
-          <p>產生過程會顯示在下方 log。完成後，路線連結會出現在這裡。</p>
-        </div>
-      </div>
-
-      <div class="log-sheet">
-        <div class="sheet-title">
-          <div>
-            <h2>處理紀錄</h2>
-            <p>定位店點、移除重複地點、Routes API 與錯誤訊息。</p>
+        <div id="builderResults" class="table-scroll">
+          <div class="empty-state table-empty">
+            <span><svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg></span>
+            <strong>等待解析店點</strong>
+            <p>候選門市、地址、座標與確認連結會顯示在這裡。</p>
           </div>
         </div>
-        <div id="log" class="run-log"></div>
       </div>
     </section>
-  </main>
+      </main>
 
-  <script src="app.js" defer></script>
+      <footer class="site-footer">
+        <div><span class="brand-mark mini" aria-hidden="true"><img src="favicon.svg?v=20260824" alt="" /></span><p>跑店路線最佳化 · Route planning console</p></div>
+        <p>金鑰僅於瀏覽器工作階段使用；正式部署時仍應限制 API 網域與權限。</p>
+      </footer>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260824f" defer></script>
+  <script src="ui.js?v=20260824e" defer></script>
 </body>
 </html>

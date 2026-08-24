@@ -5,8 +5,19 @@ if (typeof GOOGLE_API_KEY !== 'undefined' && GOOGLE_API_KEY.trim()) {
 const CSV_ENCODINGS = ['utf-8', 'big5-hkscs', 'big5', 'cp950', 'utf-16le', 'utf-16be', 'iso-8859-1'];
 const GEOCODE_DELAY_MS = 120;
 const DEDUPE_DISTANCE_M = 50;
-const DEFAULT_ORIGIN = '7-ELEVEN 統客門市';
-const DEFAULT_DESTINATION = '231新北市新店區寶興路49號';
+const DEFAULT_ORIGIN = '24.9732927,121.5492187';
+const DEFAULT_DESTINATION = '24.9732927,121.5492187';
+const STORE_NAME_COLUMN = 0;
+const STORE_ADDRESS_COLUMN = 2;
+const DEFAULT_STORE_LIMIT = 30;
+const MAX_STORES = 200;
+
+const TRANSPORT_MODES = {
+  TWO_WHEELER: { here: 'scooter', label: '機車', icon: '🛵' },
+  DRIVE: { here: 'car', label: '汽車', icon: '🚗' },
+};
+
+let resolvedStoreRows = [];
 
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -41,15 +52,14 @@ function clampNumber(value, min, max, fallback) {
 function readOptions() {
   return {
     apiKey: $('apiKey').value.trim(),
+    hereApiKey: $('hereApiKey').value.trim(),
     origin: normalizeTW($('origin').value.trim() || DEFAULT_ORIGIN),
     destination: normalizeTW($('destination').value.trim() || DEFAULT_DESTINATION),
-    colName: parseInt($('colName').value, 10) || 0,
-    colAddr: parseInt($('colAddr').value, 10) || 2,
-    maxApi: clampNumber($('maxApi').value, 1, 23, 23),
-    maxUrl: clampNumber($('maxUrl').value, 1, 8, 8),
-    travelMode: $('mode').value,
-    avoidHighways: $('avoidHighways').checked,
-    avoidTolls: $('avoidTolls').checked,
+    maxApi: clampNumber($('maxApi').value, 1, MAX_STORES, DEFAULT_STORE_LIMIT),
+    maxUrl: clampNumber($('maxUrl').value, 1, 9, 8),
+    travelMode: document.querySelector('input[name="travelMode"]:checked')?.value || 'TWO_WHEELER',
+    avoidHighways: document.querySelector('input[name="avoidHighways"]:checked')?.value !== 'false',
+    avoidTolls: document.querySelector('input[name="avoidTolls"]:checked')?.value !== 'false',
     file: $('csvFile').files[0],
   };
 }
@@ -70,8 +80,7 @@ function buildMapsUrl(origin, destination, waypoints, { mode, avoidHighways, avo
   params.set('destination', normalizeTW(destination));
 
   if (mode === 'TWO_WHEELER') {
-    params.set('dirflg', 'm');
-    params.set('travelmode', 'driving');
+    params.set('travelmode', 'two-wheeler');
   } else if (mode === 'DRIVE') {
     params.set('travelmode', 'driving');
   } else if (mode === 'BICYCLE') {
@@ -106,7 +115,16 @@ async function readCsvSmart(file) {
   return best.text ?? new TextDecoder('utf-8').decode(bytes);
 }
 
-function parseStoresFromCsv(text, { colName, colAddr, maxApi }) {
+function parseCoordinate(value) {
+  const match = String(value ?? '').trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if (!match) return null;
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return `${latitude},${longitude}`;
+}
+
+function parseStoresFromCsv(text, { maxApi }) {
   const rows = Papa.parse(text, {
     skipEmptyLines: 'greedy',
     dynamicTyping: false,
@@ -115,35 +133,48 @@ function parseStoresFromCsv(text, { colName, colAddr, maxApi }) {
 
   const stores = [];
   for (const row of rows) {
-    const rawName = (row[colName] ?? '').toString().trim();
-    const rawAddr = (row[colAddr] ?? '').toString().trim();
+    const rawName = (row[STORE_NAME_COLUMN] ?? '').toString().trim();
+    const rawAddr = (row[STORE_ADDRESS_COLUMN] ?? '').toString().trim();
     if (!rawName || !rawAddr) continue;
+    if (/店名/.test(rawName) && /地址/.test(rawAddr)) continue;
 
     const name = rawName.startsWith('全聯福利中心') ? rawName : `全聯福利中心 ${rawName}店`;
-    stores.push({ name, address: normalizeTW(rawAddr) });
+    const latitude = row[3];
+    const longitude = row[4];
+    stores.push({
+      name,
+      address: normalizeTW(rawAddr),
+      latLng: parseCoordinate(`${latitude},${longitude}`),
+    });
     if (stores.length >= maxApi) break;
   }
   return stores;
 }
 
-async function textSearchLatLng(apiKey, query) {
+async function searchPlaceCandidates(apiKey, query, maxResultCount = 3) {
   const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'places.location',
+      'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.googleMapsUri',
     },
     body: JSON.stringify({
       textQuery: `${normalizeTW(query)} 台灣`,
       regionCode: 'TW',
-      maxResultCount: 1,
+      maxResultCount,
       languageCode: 'zh-TW',
     }),
   });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    throw new Error(`Places API error: ${await response.text()}`);
+  }
 
-  const places = (await response.json()).places || [];
+  return ((await response.json()).places || []).filter((place) => place.location);
+}
+
+async function textSearchLatLng(apiKey, query) {
+  const places = await searchPlaceCandidates(apiKey, query, 1);
   const location = places[0]?.location;
   return location ? `${location.latitude},${location.longitude}` : null;
 }
@@ -180,91 +211,123 @@ async function robustGeocode(apiKey, name, address) {
 
 async function geocodeStores(apiKey, stores) {
   const waypoints = [];
-  for (const { name, address } of stores) {
+  let csvCoordinateCount = 0;
+  let resolvedCoordinateCount = 0;
+  for (const { name, address, latLng: savedLatLng } of stores) {
     try {
-      const latLng = await robustGeocode(apiKey, name, address);
+      const latLng = savedLatLng || await robustGeocode(apiKey, name, address);
       if (latLng) {
         waypoints.push([latLng, name]);
-        log(` ✅ ${name} → ${latLng}`, 'ok');
+        if (savedLatLng) csvCoordinateCount += 1;
+        else resolvedCoordinateCount += 1;
       } else {
         log(` ⚠️ 無法定位 ${name}，已跳過。`, 'error');
       }
     } catch (error) {
       log(` ⚠️ ${name} 解析失敗：${error.message}`, 'error');
     }
-    await sleep(GEOCODE_DELAY_MS);
+    if (!savedLatLng) await sleep(GEOCODE_DELAY_MS);
+  }
+
+  const coordinateSources = [];
+  if (csvCoordinateCount) coordinateSources.push(`CSV ${csvCoordinateCount}`);
+  if (resolvedCoordinateCount) coordinateSources.push(`Google ${resolvedCoordinateCount}`);
+  const sourceSummary = coordinateSources.length ? `（${coordinateSources.join('、')}）` : '';
+  log(`✅ 座標確認完成：${waypoints.length} 間${sourceSummary}。`, 'ok');
+  return waypoints;
+}
+
+function warnClosePoints(waypoints, thresholdM = DEDUPE_DISTANCE_M) {
+  const seen = [];
+  for (const [latLng, name] of waypoints) {
+    const [lat, lng] = latLng.split(',').map(Number);
+    const nearby = seen.find(([seenLatLng]) => {
+      const [seenLat, seenLng] = seenLatLng.split(',').map(Number);
+      return haversine(lat, lng, seenLat, seenLng) < thresholdM;
+    });
+
+    if (nearby) {
+      log(`⚠️ ${name} 與 ${nearby[1]} 距離小於 ${thresholdM}m；兩間仍會保留，請核對座標。`, 'error');
+    }
+    seen.push([latLng, name]);
   }
   return waypoints;
 }
 
-function dedupeClosePoints(waypoints, thresholdM = DEDUPE_DISTANCE_M) {
-  const kept = [];
-  for (const [latLng, name] of waypoints) {
-    const [lat, lng] = latLng.split(',').map(Number);
-    const tooClose = kept.some(([keptLatLng]) => {
-      const [keptLat, keptLng] = keptLatLng.split(',').map(Number);
-      return haversine(lat, lng, keptLat, keptLng) < thresholdM;
-    });
-
-    if (tooClose) {
-      log(`⚠️ 與既有點距離 < ${thresholdM}m，視為重複：${name}`, 'error');
-      continue;
-    }
-    kept.push([latLng, name]);
-  }
-  return kept;
+async function resolveLatLng(apiKey, value) {
+  return parseCoordinate(value) || robustGeocode(apiKey, '', value);
 }
 
-async function computeOptimizedOrder(apiKey, origin, destination, waypoints, travelMode, avoidHighways, avoidTolls) {
-  const body = {
-    origin: { address: `${normalizeTW(origin)} , 台灣` },
-    destination: { address: `${normalizeTW(destination)} , 台灣` },
-    intermediates: waypoints.map(([latLng]) => {
-      const [latitude, longitude] = latLng.split(',').map(Number);
-      return { location: { latLng: { latitude, longitude } } };
-    }),
-    travelMode,
-    optimizeWaypointOrder: true,
-    routeModifiers: { avoidHighways, avoidTolls },
-    languageCode: 'zh-TW',
-  };
+function requestJsonp(url, timeoutMs = 120000) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `__hereSequence_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement('script');
+    let settled = false;
 
-  if (body.intermediates.length < 2) {
-    log('ℹ️ 中繼點少於 2 個，直接採用原順序。');
-    return body.intermediates.map((_, index) => index);
-  }
+    const cleanup = () => {
+      clearTimeout(timeout);
+      script.remove();
+      delete window[callbackName];
+    };
+    const finish = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      handler(value);
+    };
 
-  let response = await fetchRoutes(apiKey, body);
-  if (!response.ok && travelMode === 'TWO_WHEELER') {
-    log('TWO_WHEELER 失敗，嘗試改用 DRIVE...', 'error');
-    body.travelMode = 'DRIVE';
-    response = await fetchRoutes(apiKey, body);
-  }
-  if (!response.ok) {
-    throw new Error(`Routes API error: ${await response.text()}`);
-  }
-
-  const indexes = (await response.json()).routes?.[0]?.optimizedIntermediateWaypointIndex || [];
-  if (!indexes.length) {
-    log('⚠️ Routes API 未提供最佳化索引，可能是座標重疊/過近，將直接使用原順序。', 'error');
-    return body.intermediates.map((_, index) => index);
-  }
-  if (indexes.length !== waypoints.length) {
-    log(`⚠️ 回傳索引數(${indexes.length}) ≠ 中繼點數(${waypoints.length})，將對齊最小長度。`, 'error');
-  }
-  return indexes.slice(0, waypoints.length);
-}
-
-function fetchRoutes(apiKey, body) {
-  return fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'routes.optimizedIntermediateWaypointIndex',
-    },
-    body: JSON.stringify(body),
+    window[callbackName] = (data) => finish(resolve, data);
+    url.searchParams.set('jsonCallback', callbackName);
+    script.src = url.toString();
+    script.async = true;
+    script.onerror = () => finish(reject, new Error('HERE 回應無法載入，請檢查 API key、Trusted Domains 與網路連線。'));
+    script.onload = () => {
+      setTimeout(() => {
+        if (!settled) finish(reject, new Error('HERE 未回傳有效資料，請檢查 API key 與服務權限。'));
+      }, 0);
+    };
+    const timeout = setTimeout(
+      () => finish(reject, new Error('HERE 排序超過 120 秒，請稍後再試。')),
+      timeoutMs,
+    );
+    document.head.appendChild(script);
   });
+}
+
+async function computeOptimizedOrder(hereApiKey, origin, destination, waypoints, options) {
+  if (waypoints.length < 2) {
+    log('ℹ️ 中繼點少於 2 個，直接採用原順序。');
+    return waypoints.map((_, index) => index);
+  }
+
+  const url = new URL('https://wps.hereapi.com/v8/findsequence2');
+  url.searchParams.set('start', `start;${origin}`);
+  url.searchParams.set('end', `end;${destination}`);
+  url.searchParams.set('improveFor', 'time');
+  url.searchParams.set('apiKey', hereApiKey);
+
+  const transport = TRANSPORT_MODES[options.travelMode] || TRANSPORT_MODES.TWO_WHEELER;
+  const routeFeatures = [];
+  if (options.avoidHighways) routeFeatures.push('motorway:-3');
+  if (options.avoidTolls) routeFeatures.push('tollroad:-3');
+  const mode = `fastest;${transport.here};traffic:disabled${routeFeatures.length ? `;${routeFeatures.join(',')}` : ''}`;
+  url.searchParams.set('mode', mode);
+  waypoints.forEach(([latLng], index) => url.searchParams.set(`destination${index + 1}`, `store${index};${latLng}`));
+
+  // HERE supports JSONP for browser clients; the endpoint does not expose CORS headers.
+  const data = await requestJsonp(url);
+  const result = data.results?.[0];
+  const indexes = (result?.waypoints || [])
+    .filter(({ id }) => /^store\d+$/.test(id))
+    .sort((a, b) => a.sequence - b.sequence)
+    .map(({ id }) => Number(id.slice(5)));
+
+  const uniqueIndexes = new Set(indexes);
+  if (indexes.length !== waypoints.length || uniqueIndexes.size !== waypoints.length || indexes.some((index) => index >= waypoints.length)) {
+    throw new Error(`HERE 回傳的店點順序不完整（${indexes.length}/${waypoints.length}）。`);
+  }
+  log(`✅ HERE ${transport.here}（${transport.label}）排序完成：約 ${(Number(result.distance) / 1000).toFixed(1)} km。`, 'ok');
+  return indexes;
 }
 
 function splitUrlsAndNames(origin, destination, sortedWaypoints, maxWaypointsPerUrl, opts) {
@@ -277,11 +340,10 @@ function splitUrlsAndNames(origin, destination, sortedWaypoints, maxWaypointsPer
     const isLastSegment = i + maxWaypointsPerUrl >= sortedWaypoints.length;
     const end = isLastSegment ? normalizeTW(destination) : segment[segment.length - 1][0];
     let segmentWaypoints = (isLastSegment ? segment : segment.slice(0, -1)).map(([point]) => point);
-    let segmentNames = (isLastSegment ? segment : segment.slice(0, -1)).map(([, name]) => name);
+    let segmentNames = segment.map(([, name]) => name);
 
     if (segmentWaypoints[0] === start) {
       segmentWaypoints = segmentWaypoints.slice(1);
-      segmentNames = segmentNames.slice(1);
     }
 
     urls.push(buildMapsUrl(start, end, segmentWaypoints, opts));
@@ -292,14 +354,198 @@ function splitUrlsAndNames(origin, destination, sortedWaypoints, maxWaypointsPer
   return { urls, names };
 }
 
-function downloadText(filename, content) {
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+function downloadText(filename, content, type = 'text/plain;charset=utf-8') {
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function areaFromAddress(address) {
+  return normalizeTW(address).match(/(?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)/)?.[0] || '';
+}
+
+function selectedPlace(row) {
+  return row.candidates[row.selectedIndex] || null;
+}
+
+function createSvgIcon(symbolId) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  svg.classList.add('icon');
+  svg.setAttribute('aria-hidden', 'true');
+  use.setAttribute('href', `#${symbolId}`);
+  svg.appendChild(use);
+  return svg;
+}
+
+function formatCoordinate(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(6) : '—';
+}
+
+function renderBuilderResults() {
+  const host = $('builderResults');
+  host.innerHTML = '';
+  const table = document.createElement('table');
+  table.className = 'store-table';
+  const head = document.createElement('thead');
+  head.innerHTML = '<tr><th>輸入店名</th><th>Google 候選</th><th>完整地址</th><th>緯度</th><th>經度</th><th>地圖</th></tr>';
+  const body = document.createElement('tbody');
+
+  resolvedStoreRows.forEach((row, rowIndex) => {
+    const tr = document.createElement('tr');
+    const inputCell = document.createElement('td');
+    inputCell.textContent = row.inputName;
+    const candidateCell = document.createElement('td');
+    const addressCell = document.createElement('td');
+    const latitudeCell = document.createElement('td');
+    const longitudeCell = document.createElement('td');
+    const mapCell = document.createElement('td');
+
+    if (row.candidates.length) {
+      if (row.candidates.length === 1) {
+        const single = document.createElement('div');
+        single.className = 'candidate-single';
+        const icon = document.createElement('span');
+        icon.appendChild(createSvgIcon('icon-check'));
+        const copy = document.createElement('div');
+        const name = document.createElement('strong');
+        name.textContent = row.candidates[0].displayName?.text || row.candidates[0].formattedAddress || 'Google 候選';
+        const state = document.createElement('small');
+        state.textContent = '唯一候選 · 已自動採用';
+        copy.append(name, state);
+        single.append(icon, copy);
+        candidateCell.appendChild(single);
+      } else {
+        const picker = document.createElement('details');
+        picker.className = 'candidate-picker';
+        const summary = document.createElement('summary');
+        const currentName = document.createElement('strong');
+        currentName.textContent = selectedPlace(row)?.displayName?.text || `候選 ${row.selectedIndex + 1}`;
+        const count = document.createElement('small');
+        count.textContent = `${row.candidates.length} 個候選`;
+        summary.append(currentName, count, createSvgIcon('icon-chevron'));
+
+        const options = document.createElement('div');
+        options.className = 'candidate-options';
+        row.candidates.forEach((place, index) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'candidate-option';
+          button.setAttribute('aria-pressed', String(index === row.selectedIndex));
+          const number = document.createElement('span');
+          number.textContent = String(index + 1).padStart(2, '0');
+          const copy = document.createElement('div');
+          const name = document.createElement('strong');
+          name.textContent = place.displayName?.text || `候選 ${index + 1}`;
+          const address = document.createElement('small');
+          address.textContent = normalizeTW(place.formattedAddress || '地址未提供');
+          copy.append(name, address);
+          button.append(number, copy);
+          button.addEventListener('click', () => {
+            resolvedStoreRows[rowIndex].selectedIndex = index;
+            renderBuilderResults();
+          });
+          options.appendChild(button);
+        });
+
+        picker.append(summary, options);
+        candidateCell.appendChild(picker);
+      }
+
+      const place = selectedPlace(row);
+      addressCell.textContent = normalizeTW(place.formattedAddress || '');
+      latitudeCell.textContent = formatCoordinate(place.location.latitude);
+      longitudeCell.textContent = formatCoordinate(place.location.longitude);
+      latitudeCell.className = 'coordinate-value';
+      longitudeCell.className = 'coordinate-value';
+      if (place.googleMapsUri) {
+        const link = document.createElement('a');
+        link.href = place.googleMapsUri;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'map-link';
+        link.title = '在 Google Maps 確認位置';
+        link.setAttribute('aria-label', `在 Google Maps 確認 ${row.inputName} 的位置`);
+        link.appendChild(createSvgIcon('icon-pin'));
+        mapCell.appendChild(link);
+      }
+    } else {
+      candidateCell.textContent = '找不到候選';
+      candidateCell.className = 'error';
+      addressCell.textContent = '—';
+      latitudeCell.textContent = '—';
+      longitudeCell.textContent = '—';
+    }
+
+    tr.append(inputCell, candidateCell, addressCell, latitudeCell, longitudeCell, mapCell);
+    body.appendChild(tr);
+  });
+
+  table.append(head, body);
+  host.appendChild(table);
+  const complete = resolvedStoreRows.length > 0 && resolvedStoreRows.every((row) => selectedPlace(row));
+  $('downloadStoresBtn').disabled = !complete;
+}
+
+async function resolveStoreNames() {
+  const apiKey = $('builderApiKey').value.trim();
+  const names = $('storeNames').value.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
+  if (!apiKey) return alert('請先貼上 Google Maps API Key');
+  if (!names.length) return alert('請輸入至少一個店名');
+  if (names.length > MAX_STORES) return alert(`一次最多 ${MAX_STORES} 間店`);
+
+  $('resolveStoresBtn').disabled = true;
+  $('downloadStoresBtn').disabled = true;
+  resolvedStoreRows = [];
+  $('builderResults').innerHTML = '';
+  $('builderStatus').textContent = `開始解析 ${names.length} 間店…`;
+
+  for (let index = 0; index < names.length; index += 1) {
+    const inputName = names[index];
+    try {
+      const branchName = inputName.replace(/^全聯福利中心\s*/, '').replace(/店$/, '').trim();
+      const query = `全聯福利中心 ${branchName}店`;
+      const candidates = await searchPlaceCandidates(apiKey, query, 3);
+      resolvedStoreRows.push({ inputName, candidates, selectedIndex: 0 });
+    } catch (error) {
+      resolvedStoreRows.push({ inputName, candidates: [], selectedIndex: 0 });
+      $('builderStatus').textContent = `${inputName} 解析失敗：${error.message}`;
+    }
+    $('builderStatus').textContent = `已解析 ${index + 1}/${names.length} 間店`;
+    renderBuilderResults();
+    await sleep(GEOCODE_DELAY_MS);
+  }
+
+  const failed = resolvedStoreRows.filter((row) => !selectedPlace(row)).length;
+  const needsReview = resolvedStoreRows.filter((row) => row.candidates.length > 1).length;
+  $('builderStatus').textContent = failed
+    ? `完成，但有 ${failed} 間找不到候選；請修正店名後重新解析。`
+    : needsReview
+      ? `完成 ${names.length} 間；其中 ${needsReview} 間有多個候選，請確認後下載 CSV。`
+      : `完成 ${names.length} 間；唯一候選已自動採用，可以直接下載 CSV。`;
+  $('resolveStoresBtn').disabled = false;
+}
+
+function downloadResolvedStores() {
+  const rows = [['店名', '區域', '完整地址', '緯度', '經度']];
+  for (const row of resolvedStoreRows) {
+    const place = selectedPlace(row);
+    if (!place) return alert('仍有店名未成功解析');
+    const address = normalizeTW(place.formattedAddress || '');
+    rows.push([row.inputName, areaFromAddress(address), address, place.location.latitude, place.location.longitude]);
+  }
+  const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
+  downloadText('stores_enriched.csv', csv, 'text/csv;charset=utf-8');
 }
 
 function renderRouteLinks(urls, names) {
@@ -339,7 +585,7 @@ function renderRouteLinks(urls, names) {
 
 async function runRouteGeneration() {
   const options = readOptions();
-  if (!options.apiKey) return alert('請先貼上 API Key');
+  if (!options.hereApiKey) return alert('請先貼上 HERE API Key');
   if (!options.file) return alert('請先選擇 CSV 檔');
 
   clearOutput();
@@ -349,47 +595,62 @@ async function runRouteGeneration() {
   const csvText = await readCsvSmart(options.file);
   const stores = parseStoresFromCsv(csvText, options);
   log(`➡️ 讀到門市 ${stores.length} 筆（上限 ${options.maxApi}）`);
-  if (!stores.length) return alert('CSV 內容為空或欄位索引設定錯誤');
+  if (!stores.length) return alert('CSV 內容為空，或固定欄位格式不正確（第 0 欄店名、第 2 欄地址）');
+  const needsGoogleKey = stores.some(({ latLng }) => !latLng) || !parseCoordinate(options.origin) || !parseCoordinate(options.destination);
+  if (needsGoogleKey && !options.apiKey) return alert('CSV 或起終點缺少經緯度，請貼上 Google Maps API Key 以完成定位');
 
-  log('📡 解析地點座標（Geocoding / Places Text Search）...');
+  log('📡 讀取或解析店點座標…');
   const waypoints = await geocodeStores(options.apiKey, stores);
   if (!waypoints.length) return alert('沒有可用的中繼點（請檢查 CSV/編碼/地址格式）');
-
-  const uniqueWaypoints = dedupeClosePoints(waypoints);
-  if (uniqueWaypoints.length < 2) {
-    return alert('有效中繼點不足（多數座標重疊）。請檢查 CSV 內容與地址。');
+  if (waypoints.length !== stores.length) {
+    log(`❌ 有 ${stores.length - waypoints.length} 間店定位失敗；為避免漏店，本次不產生路線。`, 'error');
+    return alert('部分店點定位失敗；請先用「店點建檔」確認地址與座標');
   }
 
-  log('🧭 呼叫 Routes API 以最佳化中繼點順序 ...');
+  const routeWaypoints = warnClosePoints(waypoints);
+  if (routeWaypoints.length < 2) {
+    return alert('有效中繼點不足，請檢查 CSV 內容。');
+  }
+
+  if (routeWaypoints.length > 100) {
+    log('⚠️ 大型路線會產生較長的 HERE GET 請求；若遭瀏覽器或網路設備拒絕，需改由後端 POST 執行。');
+  }
+
+  let originLatLng;
+  let destinationLatLng;
+  try {
+    originLatLng = await resolveLatLng(options.apiKey, options.origin);
+    destinationLatLng = await resolveLatLng(options.apiKey, options.destination);
+  } catch (error) {
+    log(`起終點定位失敗：${error.message}`, 'error');
+    return alert('起終點定位失敗，請查看 Log');
+  }
+  if (!originLatLng || !destinationLatLng) return alert('無法定位起點或終點');
+
+  const transport = TRANSPORT_MODES[options.travelMode] || TRANSPORT_MODES.TWO_WHEELER;
+  log(`${transport.icon} 呼叫 HERE Waypoints Sequence，以 ${transport.here} 模式排序…`);
   let order;
   try {
     order = await computeOptimizedOrder(
-      options.apiKey,
-      options.origin,
-      options.destination,
-      uniqueWaypoints,
-      options.travelMode,
-      options.avoidHighways,
-      options.avoidTolls,
+      options.hereApiKey,
+      originLatLng,
+      destinationLatLng,
+      routeWaypoints,
+      options,
     );
   } catch (error) {
     log(error.message, 'error');
-    return alert('Routes API 失敗，請查看 Log');
+    return alert('HERE 排序失敗，請查看 Log');
   }
 
-  if (!order.length) {
-    log('⚠️ 仍未取得最佳化索引，改用原順序輸出。', 'error');
-    order = uniqueWaypoints.map((_, index) => index);
-  }
-
-  const sortedWaypoints = order.slice(0, uniqueWaypoints.length).map((index) => uniqueWaypoints[index]);
-  const { urls, names } = splitUrlsAndNames(options.origin, options.destination, sortedWaypoints, options.maxUrl, {
+  const sortedWaypoints = order.map((index) => routeWaypoints[index]);
+  const { urls, names } = splitUrlsAndNames(originLatLng, destinationLatLng, sortedWaypoints, options.maxUrl, {
     mode: options.travelMode,
     avoidHighways: options.avoidHighways,
     avoidTolls: options.avoidTolls,
   });
 
-  $('resultSummary').textContent = `完成：成功讀取 ${stores.length} 筆店點，定位 ${uniqueWaypoints.length} 筆，產出 ${urls.length} 段 Google Maps 路線。`;
+  $('resultSummary').textContent = `完成：成功讀取並保留 ${stores.length} 筆店點，產出 ${urls.length} 段 Google Maps 路線。`;
   log(`✅ 共產出 ${urls.length} 條路線並整合為單一 routes.txt。`);
   renderRouteLinks(urls, names);
 }
@@ -397,6 +658,31 @@ async function runRouteGeneration() {
 $('runBtn').addEventListener('click', runRouteGeneration);
 $('rerunBtn').addEventListener('click', runRouteGeneration);
 $('backToSetupBtn').addEventListener('click', () => setView('setup'));
+$('resolveStoresBtn').addEventListener('click', resolveStoreNames);
+$('downloadStoresBtn').addEventListener('click', downloadResolvedStores);
+
+function setTool(tool) {
+  document.body.dataset.tool = tool;
+  const routeSelected = tool === 'route';
+  $('routeTab').setAttribute('aria-selected', String(routeSelected));
+  $('builderTab').setAttribute('aria-selected', String(!routeSelected));
+  $('routeTab').tabIndex = routeSelected ? 0 : -1;
+  $('builderTab').tabIndex = routeSelected ? -1 : 0;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+$('routeTab').addEventListener('click', () => setTool('route'));
+$('builderTab').addEventListener('click', () => setTool('builder'));
+$('toolTabs').addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  event.preventDefault();
+  const target = document.body.dataset.tool === 'route' ? $('builderTab') : $('routeTab');
+  target.click();
+  target.focus();
+});
+
+$('apiKey').addEventListener('input', () => { $('builderApiKey').value = $('apiKey').value; });
+$('builderApiKey').addEventListener('input', () => { $('apiKey').value = $('builderApiKey').value; });
 
 (function initTheme() {
   const root = document.documentElement;

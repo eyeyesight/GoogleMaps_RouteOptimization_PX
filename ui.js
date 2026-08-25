@@ -40,7 +40,7 @@
   const updateFileName = () => {
     if (!(fileInput instanceof HTMLInputElement) || !(fileName instanceof HTMLElement)) return;
     const file = fileInput.files?.[0];
-    fileName.textContent = file ? file.name : '尚未選擇檔案';
+    fileName.textContent = file ? `已選擇：${file.name}` : '尚未選擇檔案';
     fileDrop?.classList.toggle('has-file', Boolean(file));
   };
 
@@ -92,12 +92,12 @@
   // Live line count for the store builder textarea.
   const storeNames = document.getElementById('storeNames');
   const textareaCounter = document.querySelector('.textarea-counter');
+  const countStoreNames = () => storeNames instanceof HTMLTextAreaElement
+    ? storeNames.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length
+    : 0;
   const updateStoreCount = () => {
     if (!(storeNames instanceof HTMLTextAreaElement) || !(textareaCounter instanceof HTMLElement)) return;
-    const count = storeNames.value
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean).length;
+    const count = countStoreNames();
     textareaCounter.textContent = `${count} / 200 間`;
     textareaCounter.classList.toggle('is-over', count > 200);
   };
@@ -132,6 +132,80 @@
 
     syncStepper();
   });
+
+  // Shared Input Sheet action bars. Each tool exposes one primary start action.
+  const routeRunButton = document.getElementById('runBtn');
+  const routeActionTitle = document.getElementById('routeActionTitle');
+  const routeActionDetail = document.getElementById('routeActionDetail');
+  const routeStatus = routeActionTitle?.closest('.action-bar-status');
+  const apiKey = document.getElementById('apiKey');
+  const hereApiKey = document.getElementById('hereApiKey');
+  const builderApiKey = document.getElementById('builderApiKey');
+  const origin = document.getElementById('origin');
+  const destination = document.getElementById('destination');
+
+  const updateRouteAction = () => {
+    if (!(routeRunButton instanceof HTMLButtonElement) || !(routeActionTitle instanceof HTMLElement) || !(routeActionDetail instanceof HTMLElement)) return;
+    const missing = [];
+    if (!(apiKey instanceof HTMLInputElement) || !apiKey.value.trim()) missing.push('Google API Key');
+    if (!(hereApiKey instanceof HTMLInputElement) || !hereApiKey.value.trim()) missing.push('HERE API Key');
+    if (!(origin instanceof HTMLInputElement) || !origin.value.trim()) missing.push('起點');
+    if (!(destination instanceof HTMLInputElement) || !destination.value.trim()) missing.push('終點');
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.[0]) missing.push('標準 CSV');
+    const ready = missing.length === 0;
+    routeRunButton.disabled = !ready;
+    routeActionTitle.textContent = ready ? 'CSV 與 API 設定完成' : `尚缺 ${missing.length} 項設定`;
+    routeActionDetail.textContent = ready ? '可以開始排序並產生分段路線' : `需要：${missing.join('、')}`;
+    routeStatus?.classList.toggle('is-ready', ready);
+  };
+
+  const builderRunButton = document.getElementById('resolveStoresBtn');
+  const builderActionTitle = document.getElementById('builderActionTitle');
+  const builderActionDetail = document.getElementById('builderActionDetail');
+  const builderStatus = builderActionTitle?.closest('.action-bar-status');
+  const resolveStoresLabel = document.getElementById('resolveStoresLabel');
+  const downloadStoresButton = document.getElementById('downloadStoresBtn');
+
+  const updateBuilderAction = (markDirty = false) => {
+    if (!(builderRunButton instanceof HTMLButtonElement) || !(builderActionTitle instanceof HTMLElement) || !(builderActionDetail instanceof HTMLElement)) return;
+    const count = countStoreNames();
+    const hasKey = builderApiKey instanceof HTMLInputElement && Boolean(builderApiKey.value.trim());
+    const isOver = count > 200;
+    const ready = hasKey && count > 0 && !isOver;
+    builderRunButton.disabled = !ready;
+    builderStatus?.classList.toggle('is-ready', ready);
+    builderStatus?.classList.toggle('is-error', isOver);
+
+    if (isOver) {
+      builderActionTitle.textContent = '超過 200 間上限';
+      builderActionDetail.textContent = '請減少店名數量後再開始解析';
+    } else if (ready) {
+      builderActionTitle.textContent = `${count} 間店名待解析`;
+      builderActionDetail.textContent = '將搜尋 Google Places 候選門市';
+    } else {
+      builderActionTitle.textContent = '等待必要資料';
+      builderActionDetail.textContent = '填入 Places API Key 與至少一間店名';
+    }
+
+    if (markDirty) {
+      if (resolveStoresLabel instanceof HTMLElement) resolveStoresLabel.textContent = '解析店點';
+      if (downloadStoresButton instanceof HTMLButtonElement) {
+        downloadStoresButton.disabled = true;
+        downloadStoresButton.hidden = true;
+      }
+    }
+  };
+
+  [apiKey, hereApiKey, builderApiKey, origin, destination].forEach((input) => {
+    input?.addEventListener('input', () => {
+      updateRouteAction();
+      updateBuilderAction(input === builderApiKey);
+    });
+  });
+  fileInput?.addEventListener('change', updateRouteAction);
+  storeNames?.addEventListener('input', () => updateBuilderAction(true));
+  updateRouteAction();
+  updateBuilderAction();
 
   // Route users to the builder instead of exposing CSV schema details here.
   document.querySelectorAll('[data-open-builder]').forEach((button) => {

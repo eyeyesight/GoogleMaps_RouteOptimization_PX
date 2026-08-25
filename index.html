@@ -20,7 +20,7 @@
   <meta name="description" content="使用 HERE 排序店點，再輸出可用 Google Maps 機車或汽車導航開啟的分段跑店路線。" />
   <title>跑店路線最佳化（全聯）</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260824" />
-  <link rel="stylesheet" href="styles.css?v=20260824u" />
+  <link rel="stylesheet" href="styles.css?v=20260825m" />
 
   <!-- PapaParse for CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
@@ -190,11 +190,11 @@
         <header class="view-header route-hero">
           <div class="hero-copy">
             <p class="eyebrow"><span>Route desk</span> CSV · HERE · Google Maps</p>
-            <h1>多個店點，<br />排成能直接出發的路線。</h1>
+            <h1>路線最佳化</h1>
             <p class="lead">先用 HERE 的機車或汽車路網排列店點，再依 Google Maps 的限制切成可在手機逐段開啟的導航路線。</p>
             <ul class="hero-facts" role="list">
               <li><svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg><span><strong>最多 200 間</strong>單次處理上限</span></li>
-              <li><svg class="icon" aria-hidden="true"><use href="#icon-route"></use></svg><span><strong>機車或汽車</strong>依任務選擇路網</span></li>
+              <li><svg class="icon" aria-hidden="true"><use href="#icon-route"></use></svg><span><strong>機車或汽車</strong>依需求選載具</span></li>
               <li><svg class="icon" aria-hidden="true"><use href="#icon-map"></use></svg><span><strong>Maps 分段</strong>手機直接開啟</span></li>
             </ul>
           </div>
@@ -252,15 +252,15 @@
                   <text x="470" y="274">CIVIC BLVD.</text>
                 </g>
 
-                <path class="route-path route-path-shadow" d="M60 280H160Q180 280 180 260V140Q180 120 200 120H400Q420 120 420 140V260Q420 280 440 280H570Q590 280 590 260V140Q590 120 610 120H674" />
-                <path class="route-path route-path-active" d="M60 280H160Q180 280 180 260V140Q180 120 200 120H400Q420 120 420 140V260Q420 280 440 280H570Q590 280 590 260V140Q590 120 610 120H674" />
+                <path class="route-path route-path-shadow" d="M60 280H180V120H420V280H590V120H674" />
+                <path class="route-path route-path-active" d="M60 280H180V120H420V280H590V120H674" />
 
                 <g class="route-node node-start" transform="translate(60 280)"><circle r="11" /><circle r="3" /></g>
-                <g class="route-node node-one" transform="translate(180 120)"><circle r="9" /><text y="3">2</text></g>
-                <g class="route-node node-two" transform="translate(420 120)"><circle r="9" /><text y="3">3</text></g>
-                <g class="route-node node-three" transform="translate(420 280)"><circle r="9" /><text y="3">4</text></g>
-                <g class="route-node node-four" transform="translate(590 280)"><circle r="9" /><text y="3">5</text></g>
-                <g class="route-node node-five" transform="translate(590 120)"><circle r="9" /><text y="3">6</text></g>
+                <g class="route-node node-one" transform="translate(180 210)"><circle r="9" /><text y="3">2</text></g>
+                <g class="route-node node-two" transform="translate(300 120)"><circle r="9" /><text y="3">3</text></g>
+                <g class="route-node node-three" transform="translate(420 200)"><circle r="9" /><text y="3">4</text></g>
+                <g class="route-node node-four" transform="translate(500 280)"><circle r="9" /><text y="3">5</text></g>
+                <g class="route-node node-five" transform="translate(590 200)"><circle r="9" /><text y="3">6</text></g>
                 <g class="route-node node-end" transform="translate(674 120)"><circle r="12" /><circle r="4" /></g>
               </svg>
               <div class="map-metric"><small>BEST ROUTE</small><strong>32.4 km</strong><span>較原排序少 18%</span></div>
@@ -291,7 +291,6 @@
               <div>
                 <p class="sheet-kicker">Route configuration</p>
                 <h2>路線輸入</h2>
-                <p>依序完成憑證、起訖點、路線規則與 CSV 檔案設定。</p>
               </div>
               <span class="privacy-badge"><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg>僅在本頁使用</span>
             </div>
@@ -302,7 +301,6 @@
                 <span class="step-marker" aria-hidden="true"><span class="step-index">01</span><span class="step-icon"><svg class="icon"><use href="#icon-key"></use></svg></span></span>
                 <div>
                   <h3>連線憑證</h3>
-                  <p>貼上 Google 與 HERE 金鑰</p>
                 </div>
               </header>
               <div class="field-row two key-row">
@@ -310,19 +308,17 @@
                   <label for="apiKey">Google API Key</label>
                   <div class="input-wrap has-icon">
                     <svg class="field-icon icon" aria-hidden="true"><use href="#icon-key"></use></svg>
-                    <input id="apiKey" type="password" placeholder="定位缺少座標的店點" autocomplete="off" spellcheck="false" aria-describedby="apiKeyHelp" />
+                    <input id="apiKey" type="password" placeholder="用於查詢店點座標" autocomplete="off" spellcheck="false" aria-describedby="routeApiNote" />
                     <button class="visibility-toggle" type="button" data-toggle-visibility="apiKey" aria-label="顯示 Google Maps API Key"><span aria-hidden="true"></span></button>
                   </div>
-                  <small id="apiKeyHelp">需允許 Places API 與 Geocoding API。</small>
                 </div>
                 <div class="field-line">
                   <label for="hereApiKey">HERE API Key</label>
                   <div class="input-wrap has-icon">
                     <svg class="field-icon icon" aria-hidden="true"><use href="#icon-key"></use></svg>
-                    <input id="hereApiKey" type="password" placeholder="Waypoint Sequencing key" autocomplete="off" spellcheck="false" aria-describedby="hereApiKeyHelp" />
+                    <input id="hereApiKey" type="password" placeholder="用於安排店點順序" autocomplete="off" spellcheck="false" aria-describedby="routeApiNote" />
                     <button class="visibility-toggle" type="button" data-toggle-visibility="hereApiKey" aria-label="顯示 HERE API Key"><span aria-hidden="true"></span></button>
                   </div>
-                  <small id="hereApiKeyHelp">正式使用前請確認 Optimization entitlement。</small>
                 </div>
               </div>
             </section>
@@ -332,7 +328,6 @@
                 <span class="step-marker" aria-hidden="true"><span class="step-index">02</span><span class="step-icon"><svg class="icon"><use href="#icon-pin"></use></svg></span></span>
                 <div>
                   <h3>起點與終點</h3>
-                  <p>設定出發與收尾位置</p>
                 </div>
               </header>
               <div class="field-row two">
@@ -340,14 +335,14 @@
                   <label for="origin">起點</label>
                   <div class="input-wrap has-icon">
                     <svg class="field-icon icon" aria-hidden="true"><use href="#icon-pin"></use></svg>
-                    <input id="origin" value="24.9732927,121.5492187" placeholder="店名、地址或緯度,經度" />
+                    <input id="origin" placeholder="輸入店名、地址或緯度,經度" autocomplete="street-address" />
                   </div>
                 </div>
                 <div class="field-line">
                   <label for="destination">終點</label>
                   <div class="input-wrap has-icon">
                     <svg class="field-icon icon" aria-hidden="true"><use href="#icon-flag"></use></svg>
-                    <input id="destination" value="24.9732927,121.5492187" placeholder="店名、地址或緯度,經度" />
+                    <input id="destination" placeholder="輸入店名、地址或緯度,經度" autocomplete="street-address" />
                   </div>
                 </div>
               </div>
@@ -358,26 +353,22 @@
                 <span class="step-marker" aria-hidden="true"><span class="step-index">03</span><span class="step-icon"><svg class="icon"><use href="#icon-sliders"></use></svg></span></span>
                 <div>
                   <h3>路線規則</h3>
-                  <p>選擇分段與交通偏好</p>
                 </div>
               </header>
               <div class="field-row route-rule-row">
                 <div class="field-line stop-count-field">
-                  <div class="field-label-row">
-                    <label for="maxUrl">每段停靠點</label>
-                    <span>上限 9</span>
-                  </div>
+                  <label for="maxUrl">每段停靠點</label>
                   <div class="stepper-group" data-stepper>
                     <button type="button" data-step="-1" aria-label="減少每段停靠點">−</button>
                     <div class="stepper-value">
-                      <input id="maxUrl" type="number" min="1" max="9" value="8" readonly />
+                      <input id="maxUrl" type="number" min="1" max="9" value="8" readonly aria-describedby="routeRulesNote" />
                       <span>點</span>
                     </div>
                     <button type="button" data-step="1" aria-label="增加每段停靠點">＋</button>
                   </div>
                 </div>
 
-                <fieldset class="field-line rule-choice-field">
+                <fieldset class="field-line rule-choice-field" aria-describedby="routeRulesNote">
                   <legend>交通工具</legend>
                   <div class="glide-group" data-glide-group>
                     <label>
@@ -391,7 +382,7 @@
                   </div>
                 </fieldset>
 
-                <fieldset class="field-line rule-choice-field">
+                <fieldset class="field-line rule-choice-field" aria-describedby="routeRulesNote">
                   <legend>避開高速公路</legend>
                   <div class="glide-group" data-glide-group>
                     <label><input type="radio" name="avoidHighways" value="false" /><span>允許</span></label>
@@ -399,7 +390,7 @@
                   </div>
                 </fieldset>
 
-                <fieldset class="field-line rule-choice-field">
+                <fieldset class="field-line rule-choice-field" aria-describedby="routeRulesNote">
                   <legend>避開收費路段</legend>
                   <div class="glide-group" data-glide-group>
                     <label><input type="radio" name="avoidTolls" value="false" /><span>允許</span></label>
@@ -414,32 +405,35 @@
                 <span class="step-marker" aria-hidden="true"><span class="step-index">04</span><span class="step-icon"><svg class="icon"><use href="#icon-file"></use></svg></span></span>
                 <div>
                   <h3>匯入店點</h3>
-                  <p>選擇「店點建檔」輸出的標準 CSV</p>
                 </div>
               </header>
-              <div class="action-line">
-                <div class="field-line file-field">
-                  <label for="csvFile">CSV 店點檔案</label>
-                  <div class="file-drop" data-file-drop>
-                    <svg class="file-drop-icon icon" aria-hidden="true"><use href="#icon-file"></use></svg>
-                    <div class="file-drop-copy">
-                      <strong>拖曳 CSV 到這裡</strong>
-                      <span>或點一下選擇電腦中的檔案</span>
-                    </div>
-                    <span class="file-name" data-file-name>尚未選擇檔案</span>
-                    <input id="csvFile" type="file" accept=".csv,text/csv" />
+              <div class="field-line file-field">
+                <label for="csvFile">CSV 店點檔案</label>
+                <div class="file-drop" data-file-drop>
+                  <svg class="file-drop-icon icon" aria-hidden="true"><use href="#icon-file"></use></svg>
+                  <div class="file-drop-copy">
+                    <strong>選擇電腦中的檔案</strong>
+                    <span>或直接拖曳 CSV 到這裡</span>
                   </div>
-                  <small>若來源是 Excel，請先另存為 UTF-8 CSV。</small>
-                </div>
-                <div class="action-cta">
-                  <p><span class="status-dot"></span>資料就緒後即可開始排序</p>
-                  <button id="runBtn" class="primary-action" type="button">
-                    <span>產生路線</span>
-                    <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
-                  </button>
+                  <span class="file-name" data-file-name aria-live="polite">尚未選擇檔案</span>
+                  <input id="csvFile" type="file" accept=".csv,text/csv" aria-describedby="routeCsvNote" />
                 </div>
               </div>
             </section>
+
+            <footer class="input-action-bar" aria-label="路線執行動作">
+              <div class="action-bar-status" aria-live="polite">
+                <span class="status-dot" aria-hidden="true"></span>
+                <div>
+                  <strong id="routeActionTitle">等待必要資料</strong>
+                  <small id="routeActionDetail">完成 API 設定並選擇標準 CSV</small>
+                </div>
+              </div>
+              <button id="runBtn" class="workspace-run-button" type="button" disabled>
+                <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                <span>產生路線</span>
+              </button>
+            </footer>
           </form>
 
           <aside class="instruction-sheet spotlight-card" aria-label="操作註記">
@@ -462,7 +456,6 @@
               <div>
                 <p class="sheet-kicker">Reference notes</p>
                 <h2>操作註記</h2>
-                <p>只保留開始前真正需要知道的資訊。</p>
               </div>
             </div>
 
@@ -470,14 +463,20 @@
               <article class="note-card">
                 <span class="note-index">API</span>
                 <h3>連線與權限</h3>
-                <p class="note-copy">需啟用 Google Places／Geocoding 與 HERE Waypoints Sequence；大型路線與方案限制請看完整文件。</p>
+                <p id="routeApiNote" class="note-copy">Google Key 需啟用 Places／Geocoding API，HERE Key 請確認 Waypoints Sequence 和 Optimization entitlement。</p>
                 <a class="note-link" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX#readme" target="_blank" rel="noopener">查看專案 README.md <span aria-hidden="true">↗</span></a>
+              </article>
+
+              <article class="note-card">
+                <span class="note-index">ROUTE</span>
+                <h3>起訖與路線規則</h3>
+                <p id="routeRulesNote" class="note-copy">起點與終點可輸入店名、地址或座標，每段地圖最多 9 個停靠點，交通工具與避開高速或收費設定將套用至路線排序與 Maps 分段。</p>
               </article>
 
               <article class="note-card">
                 <span class="note-index">CSV</span>
                 <h3>標準店點檔案</h3>
-                <p class="note-copy">不必自行理解欄位索引；先到「店點建檔」確認店址，再下載可直接匯入的標準 CSV。</p>
+                <p id="routeCsvNote" class="note-copy">選擇「店點建檔」輸出的標準 CSV，而若來源是 Excel，請先另存為 UTF-8 格式，再匯入路線工具。</p>
                 <button class="note-link" type="button" data-open-builder>前往店點建檔 <span aria-hidden="true">→</span></button>
               </article>
             </div>
@@ -618,18 +617,19 @@
             </div>
           </section>
 
-          <div class="builder-actions">
-            <div class="builder-action-controls">
-              <button id="resolveStoresBtn" class="builder-action builder-action-primary" type="button">
-                <span>解析店點</span>
-                <span class="builder-action-icon"><svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg></span>
-              </button>
-              <button id="downloadStoresBtn" class="builder-action builder-action-secondary download-button" type="button" disabled>
-                <span class="builder-action-icon"><svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg></span>
-                <span>下載標準 CSV</span>
-              </button>
+          <footer class="input-action-bar" aria-label="店點解析動作">
+            <div class="action-bar-status" aria-live="polite">
+              <span class="status-dot" aria-hidden="true"></span>
+              <div>
+                <strong id="builderActionTitle">等待必要資料</strong>
+                <small id="builderActionDetail">填入 Places API Key 與至少一間店名</small>
+              </div>
             </div>
-          </div>
+            <button id="resolveStoresBtn" class="workspace-run-button" type="button" disabled>
+              <svg class="icon" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+              <span id="resolveStoresLabel">解析店點</span>
+            </button>
+          </footer>
         </form>
 
         <aside class="instruction-sheet spotlight-card">
@@ -687,6 +687,10 @@
             <h2>解析結果</h2>
             <p id="builderStatus" aria-live="polite">尚未開始解析。</p>
           </div>
+          <button id="downloadStoresBtn" class="output-action" type="button" disabled hidden>
+            <svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg>
+            <span>下載標準 CSV</span>
+          </button>
         </div>
         <div id="builderResults" class="table-scroll">
           <div class="empty-state table-empty">
@@ -706,7 +710,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260824f" defer></script>
-  <script src="ui.js?v=20260824e" defer></script>
+  <script src="app.js?v=20260825a" defer></script>
+  <script src="ui.js?v=20260825a" defer></script>
 </body>
 </html>

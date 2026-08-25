@@ -5,8 +5,6 @@ if (typeof GOOGLE_API_KEY !== 'undefined' && GOOGLE_API_KEY.trim()) {
 const CSV_ENCODINGS = ['utf-8', 'big5-hkscs', 'big5', 'cp950', 'utf-16le', 'utf-16be', 'iso-8859-1'];
 const GEOCODE_DELAY_MS = 120;
 const DEDUPE_DISTANCE_M = 50;
-const DEFAULT_ORIGIN = '24.9732927,121.5492187';
-const DEFAULT_DESTINATION = '24.9732927,121.5492187';
 const STORE_NAME_COLUMN = 0;
 const STORE_ADDRESS_COLUMN = 2;
 const DEFAULT_STORE_LIMIT = 30;
@@ -18,6 +16,7 @@ const TRANSPORT_MODES = {
 };
 
 let resolvedStoreRows = [];
+let isResolvingStoreRows = false;
 
 const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -53,8 +52,8 @@ function readOptions() {
   return {
     apiKey: $('apiKey').value.trim(),
     hereApiKey: $('hereApiKey').value.trim(),
-    origin: normalizeTW($('origin').value.trim() || DEFAULT_ORIGIN),
-    destination: normalizeTW($('destination').value.trim() || DEFAULT_DESTINATION),
+    origin: normalizeTW($('origin').value.trim()),
+    destination: normalizeTW($('destination').value.trim()),
     maxApi: clampNumber($('maxApi').value, 1, MAX_STORES, DEFAULT_STORE_LIMIT),
     maxUrl: clampNumber($('maxUrl').value, 1, 9, 8),
     travelMode: document.querySelector('input[name="travelMode"]:checked')?.value || 'TWO_WHEELER',
@@ -392,6 +391,18 @@ function formatCoordinate(value) {
   return Number.isFinite(number) ? number.toFixed(6) : '—';
 }
 
+function setBuilderActionState(title, detail, label = '解析店點', state = 'idle') {
+  const titleNode = $('builderActionTitle');
+  const detailNode = $('builderActionDetail');
+  const labelNode = $('resolveStoresLabel');
+  const status = titleNode?.closest?.('.action-bar-status');
+  if (titleNode) titleNode.textContent = title;
+  if (detailNode) detailNode.textContent = detail;
+  if (labelNode) labelNode.textContent = label;
+  status?.classList?.toggle('is-ready', state === 'ready');
+  status?.classList?.toggle('is-error', state === 'error');
+}
+
 function renderBuilderResults() {
   const host = $('builderResults');
   host.innerHTML = '';
@@ -493,8 +504,9 @@ function renderBuilderResults() {
 
   table.append(head, body);
   host.appendChild(table);
-  const complete = resolvedStoreRows.length > 0 && resolvedStoreRows.every((row) => selectedPlace(row));
+  const complete = !isResolvingStoreRows && resolvedStoreRows.length > 0 && resolvedStoreRows.every((row) => selectedPlace(row));
   $('downloadStoresBtn').disabled = !complete;
+  $('downloadStoresBtn').hidden = !complete;
 }
 
 async function resolveStoreNames() {
@@ -506,9 +518,12 @@ async function resolveStoreNames() {
 
   $('resolveStoresBtn').disabled = true;
   $('downloadStoresBtn').disabled = true;
+  $('downloadStoresBtn').hidden = true;
+  isResolvingStoreRows = true;
   resolvedStoreRows = [];
   $('builderResults').innerHTML = '';
   $('builderStatus').textContent = `開始解析 ${names.length} 間店…`;
+  setBuilderActionState(`解析中 0 / ${names.length}`, '正在搜尋 Google Places 候選門市', '解析中');
 
   for (let index = 0; index < names.length; index += 1) {
     const inputName = names[index];
@@ -522,10 +537,12 @@ async function resolveStoreNames() {
       $('builderStatus').textContent = `${inputName} 解析失敗：${error.message}`;
     }
     $('builderStatus').textContent = `已解析 ${index + 1}/${names.length} 間店`;
+    setBuilderActionState(`解析中 ${index + 1} / ${names.length}`, `正在處理：${inputName}`, '解析中');
     renderBuilderResults();
     await sleep(GEOCODE_DELAY_MS);
   }
 
+  isResolvingStoreRows = false;
   const failed = resolvedStoreRows.filter((row) => !selectedPlace(row)).length;
   const needsReview = resolvedStoreRows.filter((row) => row.candidates.length > 1).length;
   $('builderStatus').textContent = failed
@@ -533,6 +550,14 @@ async function resolveStoreNames() {
     : needsReview
       ? `完成 ${names.length} 間；其中 ${needsReview} 間有多個候選，請確認後下載 CSV。`
       : `完成 ${names.length} 間；唯一候選已自動採用，可以直接下載 CSV。`;
+  if (failed) {
+    setBuilderActionState(`${failed} 間解析失敗`, '修正店名後可重新解析', '重新解析', 'error');
+  } else if (needsReview) {
+    setBuilderActionState(`${needsReview} 間候選待確認`, '在解析結果選定門市後即可下載', '重新解析');
+  } else {
+    setBuilderActionState(`${names.length} 間店點已完成解析`, '標準 CSV 已可下載', '重新解析', 'ready');
+  }
+  renderBuilderResults();
   $('resolveStoresBtn').disabled = false;
 }
 
@@ -587,6 +612,7 @@ async function runRouteGeneration() {
   const options = readOptions();
   if (!options.hereApiKey) return alert('請先貼上 HERE API Key');
   if (!options.file) return alert('請先選擇 CSV 檔');
+  if (!options.origin || !options.destination) return alert('請先填寫起點與終點');
 
   clearOutput();
   setView('results');

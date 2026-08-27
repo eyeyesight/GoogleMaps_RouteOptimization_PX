@@ -32,31 +32,45 @@
     });
   });
 
-  // CSV drop zone and file-name feedback.
-  const fileInput = document.getElementById('csvFile');
-  const fileDrop = document.querySelector('[data-file-drop]');
-  const fileName = document.querySelector('[data-file-name]');
+  // Shared file picker and drop-zone behavior for CSV and route.txt inputs.
+  document.querySelectorAll('[data-file-drop]').forEach((fileDrop) => {
+    const fileInput = fileDrop.querySelector('input[type="file"]');
+    const fileName = fileDrop.querySelector('[data-file-name]');
+    if (!(fileDrop instanceof HTMLElement) || !(fileInput instanceof HTMLInputElement) || !(fileName instanceof HTMLElement)) return;
 
-  const updateFileName = () => {
-    if (!(fileInput instanceof HTMLInputElement) || !(fileName instanceof HTMLElement)) return;
-    const file = fileInput.files?.[0];
-    fileName.textContent = file ? `已選擇：${file.name}` : '尚未選擇檔案';
-    fileDrop?.classList.toggle('has-file', Boolean(file));
-  };
+    const updateFileName = () => {
+      const file = fileInput.files?.[0];
+      fileName.textContent = file?.name || '';
+      fileName.title = file?.name || '';
+      fileDrop.classList.toggle('has-file', Boolean(file));
+      fileDrop.classList.remove('has-error');
+    };
 
-  fileInput?.addEventListener('change', updateFileName);
+    const acceptsFile = (file) => fileInput.accept
+      .split(',')
+      .map((token) => token.trim().toLowerCase())
+      .filter(Boolean)
+      .some((token) => {
+        if (token.startsWith('.')) return file.name.toLowerCase().endsWith(token);
+        if (token.endsWith('/*')) return file.type.toLowerCase().startsWith(token.slice(0, -1));
+        return file.type.toLowerCase() === token;
+      });
 
-  if (fileDrop instanceof HTMLElement && fileInput instanceof HTMLInputElement) {
+    fileInput.addEventListener('change', updateFileName);
+    fileInput.addEventListener('fileinputreset', updateFileName);
+
     ['dragenter', 'dragover'].forEach((eventName) => {
       fileDrop.addEventListener(eventName, (event) => {
         event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
         fileDrop.classList.add('is-dragover');
       });
     });
 
-    ['dragleave', 'dragend'].forEach((eventName) => {
-      fileDrop.addEventListener(eventName, () => fileDrop.classList.remove('is-dragover'));
+    fileDrop.addEventListener('dragleave', (event) => {
+      if (!fileDrop.contains(event.relatedTarget)) fileDrop.classList.remove('is-dragover');
     });
+    fileDrop.addEventListener('dragend', () => fileDrop.classList.remove('is-dragover'));
 
     fileDrop.addEventListener('drop', (event) => {
       event.preventDefault();
@@ -64,8 +78,11 @@
       const droppedFile = event.dataTransfer?.files?.[0];
       if (!droppedFile) return;
 
-      const isCsv = droppedFile.name.toLowerCase().endsWith('.csv') || droppedFile.type === 'text/csv';
-      if (!isCsv) {
+      if (!acceptsFile(droppedFile)) {
+        fileName.textContent = '不支援此檔案格式';
+        fileName.title = '';
+        fileDrop.classList.remove('has-file');
+        fileDrop.classList.add('has-error');
         fileDrop.animate?.(
           [
             { transform: 'translateX(0)' },
@@ -75,6 +92,7 @@
           ],
           { duration: 240, easing: 'ease-out' },
         );
+        window.setTimeout(updateFileName, 1600);
         return;
       }
 
@@ -87,7 +105,8 @@
         // Some browsers restrict programmatic FileList assignment; the native file picker still works.
       }
     });
-  }
+  });
+  const csvFileInput = document.getElementById('csvFile');
 
   // Live line count for the store builder textarea.
   const storeNames = document.getElementById('storeNames');
@@ -151,7 +170,7 @@
     if (!(hereApiKey instanceof HTMLInputElement) || !hereApiKey.value.trim()) missing.push('HERE API Key');
     if (!(origin instanceof HTMLInputElement) || !origin.value.trim()) missing.push('起點');
     if (!(destination instanceof HTMLInputElement) || !destination.value.trim()) missing.push('終點');
-    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.[0]) missing.push('標準 CSV');
+    if (!(csvFileInput instanceof HTMLInputElement) || !csvFileInput.files?.[0]) missing.push('標準 CSV');
     const ready = missing.length === 0;
     routeRunButton.disabled = !ready;
     routeActionTitle.textContent = ready ? 'CSV 與 API 設定完成' : `尚缺 ${missing.length} 項設定`;
@@ -202,7 +221,7 @@
       updateBuilderAction(input === builderApiKey);
     });
   });
-  fileInput?.addEventListener('change', updateRouteAction);
+  csvFileInput?.addEventListener('change', updateRouteAction);
   storeNames?.addEventListener('input', () => updateBuilderAction(true));
   updateRouteAction();
   updateBuilderAction();

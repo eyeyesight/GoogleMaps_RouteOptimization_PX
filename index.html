@@ -20,13 +20,13 @@
   <meta name="description" content="使用 HERE 排序店點，再輸出可用 Google Maps 機車或汽車導航開啟的分段跑店路線。" />
   <title>跑店路線最佳化（全聯）</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260824" />
-  <link rel="stylesheet" href="styles.css?v=20260825m" />
+  <link rel="stylesheet" href="styles.css?v=20260826e" />
 
   <!-- PapaParse for CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 </head>
-<body data-view="setup" data-tool="route">
-  <a class="skip-link" href="#routeForm">跳到路線設定</a>
+<body data-view="setup" data-tool="builder">
+  <a class="skip-link" href="#top">跳到主要內容</a>
 
   <svg class="svg-sprite" aria-hidden="true">
     <symbol id="icon-route" viewBox="0 0 24 24">
@@ -113,6 +113,27 @@
     <symbol id="icon-chevron" viewBox="0 0 24 24">
       <path d="m7 10 5 5 5-5" />
     </symbol>
+    <symbol id="icon-clipboard" viewBox="0 0 24 24">
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4.5V3h6v1.5M9 9h6m-6 4h6m-6 4h4" />
+    </symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24">
+      <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
+      <path d="M4 15v5h16v-5" />
+    </symbol>
+    <symbol id="icon-more" viewBox="0 0 24 24">
+      <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
+    </symbol>
+    <symbol id="icon-reset" viewBox="0 0 24 24">
+      <path d="M3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C8.79275 3 5.97733 4.67765 4.38341 7.20327M3.29339 3.00076L3.46556 5.05452C3.58958 6.53384 3.65159 7.27349 4.13359 7.68914C4.61559 8.10479 5.32673 8.03185 6.74899 7.88595L8.79339 7.67625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </symbol>
+    <symbol id="icon-device-floppy" viewBox="0 0 24 24">
+      <path d="M6 4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-4-4Z" />
+      <path d="M8 4v6h8V4M8 20v-6h8v6" />
+    </symbol>
   </svg>
 
   <div class="app-shell">
@@ -128,18 +149,25 @@
       <div class="sidebar-section">
         <p class="sidebar-label">Workspace</p>
         <div id="toolTabs" class="tool-tabs" role="tablist" aria-label="工具切換">
-          <button id="routeTab" class="tool-tab" type="button" role="tab" aria-label="路線最佳化" aria-selected="true" aria-controls="routeTool" data-icon="route">
+          <button id="builderTab" class="tool-tab" type="button" role="tab" aria-label="店點建檔" aria-selected="true" aria-controls="builderTool" data-icon="builder">
+            <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg>
+            <span>
+              <strong>店點建檔</strong>
+              <small>地址與座標</small>
+            </span>
+          </button>
+          <button id="routeTab" class="tool-tab" type="button" role="tab" aria-label="路線最佳化" aria-selected="false" aria-controls="routeTool" tabindex="-1" data-icon="route">
             <svg class="icon" aria-hidden="true"><use href="#icon-route"></use></svg>
             <span>
               <strong>路線最佳化</strong>
               <small>排序與分段</small>
             </span>
           </button>
-          <button id="builderTab" class="tool-tab" type="button" role="tab" aria-label="店點建檔" aria-selected="false" aria-controls="builderTool" tabindex="-1" data-icon="builder">
-            <svg class="icon" aria-hidden="true"><use href="#icon-store"></use></svg>
+          <button id="visitTab" class="tool-tab" type="button" role="tab" aria-label="跑店登記" aria-selected="false" aria-controls="visitTool" tabindex="-1" data-icon="visit">
+            <svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
             <span>
-              <strong>店點建檔</strong>
-              <small>地址與座標</small>
+              <strong>跑店登記</strong>
+              <small>執行與進度</small>
             </span>
           </button>
         </div>
@@ -157,6 +185,7 @@
           <span>PX Route Workspace</span>
           <strong class="route-label">路線最佳化</strong>
           <strong class="builder-label">店點建檔</strong>
+          <strong class="visit-label">跑店登記</strong>
         </div>
 
         <div class="navbar-context" aria-label="系統狀態">
@@ -181,8 +210,31 @@
             <p class="workspace-kicker">Operations / Taiwan</p>
             <h2 class="route-label">路線最佳化</h2>
             <h2 class="builder-label">店點建檔</h2>
+            <h2 class="visit-label">跑店登記</h2>
           </div>
-          <p class="workspace-note"><span class="workspace-note-mark">200</span> 間店點上限 · Maps waypoint 上限 9</p>
+          <p class="workspace-note route-builder-note"><span class="workspace-note-mark">200</span> 間店點上限 · Maps waypoint 上限 9</p>
+          <div class="visit-workspace-actions">
+            <p class="workspace-note visit-workspace-note"><span class="workspace-note-mark" aria-hidden="true"><svg class="icon"><use href="#icon-device-floppy"></use></svg></span><span class="visit-workspace-note-text">自動儲存於這台裝置</span></p>
+            <details id="visitMenu" class="visit-menu" hidden>
+              <summary aria-label="開啟跑店登記選單">
+                <svg class="icon" aria-hidden="true"><use href="#icon-more"></use></svg>
+              </summary>
+              <div class="visit-menu-popover">
+                <button id="visitExportBtn" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg>
+                  <span><strong>匯出跑店紀錄</strong><small>下載目前進度備份</small></span>
+                </button>
+                <button id="visitResetBtn" class="warning-action" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-reset"></use></svg>
+                  <span><strong>重設跑店進度</strong><small>保留 route.txt，歸零全部狀態</small></span>
+                </button>
+                <button id="replaceRouteBtn" class="danger-action" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-upload"></use></svg>
+                  <span><strong>載入其他 route.txt</strong><small>清除目前路線與所有進度</small></span>
+                </button>
+              </div>
+            </details>
+          </div>
         </section>
 
     <div id="routeTool" class="tool-panel route-tool" role="tabpanel" aria-labelledby="routeTab">
@@ -415,7 +467,7 @@
                     <strong>選擇電腦中的檔案</strong>
                     <span>或直接拖曳 CSV 到這裡</span>
                   </div>
-                  <span class="file-name" data-file-name aria-live="polite">尚未選擇檔案</span>
+                  <span class="file-name" data-file-name aria-live="polite"></span>
                   <input id="csvFile" type="file" accept=".csv,text/csv" aria-describedby="routeCsvNote" />
                 </div>
               </div>
@@ -504,7 +556,7 @@
               <div>
                 <p class="sheet-kicker">Navigation segments</p>
                 <h2>Google Maps 路線</h2>
-                <p>每一段路線可直接點選連結開啟，完整文字可下載成 routes.txt。</p>
+                <p>每一段路線可直接點選連結開啟，完整規劃可下載成 route.txt 並帶到手機使用。</p>
               </div>
             </div>
             <div class="output-placeholder" id="outLinks">
@@ -701,16 +753,220 @@
         </div>
       </div>
     </section>
+
+    <section id="visitTool" class="tool-panel visit-tool" role="tabpanel" aria-labelledby="visitTab" tabindex="0">
+      <header class="view-header visit-hero">
+        <div class="hero-copy">
+          <p class="eyebrow"><span>Store visit</span> route.txt · Local</p>
+          <h1>跑店登記</h1>
+          <p class="lead">把電腦規劃好的路線帶到手機，依順序登記是否到店與檔期牌更換狀態；意外關閉頁面也能從原進度繼續。</p>
+          <ul class="hero-facts" role="list">
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-file"></use></svg><span><strong>route.txt 匯入</strong>接續最佳化結果</span></li>
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg><span><strong>本機自動儲存</strong>不需要帳號或後端</span></li>
+            <li><svg class="icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg><span><strong>點開才可修改</strong>降低手機誤觸</span></li>
+          </ul>
+        </div>
+
+        <div class="visit-visual" aria-hidden="true">
+          <div class="visual-topline">
+            <span class="visual-label"><i></i> Today run · Taipei</span>
+            <span class="visual-status">LOCAL</span>
+          </div>
+          <div class="visit-preview-body">
+            <div class="visit-preview-progress">
+              <div><small>到店進度</small><strong id="visitHeroCount">0 / —</strong></div>
+              <div id="visitHeroProgress" class="visit-preview-track"><span></span></div>
+              <p><span>Auto save</span><span>route.txt</span></p>
+            </div>
+            <div class="visit-preview-stores">
+              <div class="visit-preview-store">
+                <span>01</span>
+                <div><strong id="visitHeroStore1Name">等待匯入店點</strong><small id="visitHeroStore1Status">尚未到店 · 未換牌</small></div>
+                <svg class="icon"><use href="#icon-chevron"></use></svg>
+              </div>
+              <div class="visit-preview-store">
+                <span>02</span>
+                <div><strong id="visitHeroStore2Name">依路線順序顯示</strong><small id="visitHeroStore2Status">點開卡片後登記</small></div>
+                <svg class="icon"><use href="#icon-chevron"></use></svg>
+              </div>
+            </div>
+          </div>
+          <div class="visit-preview-footer"><span><i></i> LOCAL PROGRESS</span><strong>READY</strong></div>
+        </div>
+      </header>
+
+      <ol class="workflow-ribbon visit-workflow" aria-label="跑店登記流程">
+        <li><span>01</span><div><strong>電腦規劃</strong><small>排序並下載 route.txt</small></div></li>
+        <li><span>02</span><div><strong>手機匯入</strong><small>建立本機跑店清單</small></div></li>
+        <li><span>03</span><div><strong>逐店登記</strong><small>狀態即時自動儲存</small></div></li>
+      </ol>
+
+      <div id="visitEmpty" class="setup-layout visit-import-layout">
+        <div class="input-sheet spotlight-card">
+          <div class="sheet-title">
+            <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-upload"></use></svg></span>
+            <div>
+              <p class="sheet-kicker">Route handoff</p>
+              <h2>匯入路線規劃檔</h2>
+              <p>把電腦下載的 route.txt 傳到手機後，從這裡開啟。</p>
+            </div>
+          </div>
+
+          <section class="form-section visit-import-section">
+            <header class="form-section-head">
+              <span class="step-marker" aria-hidden="true"><span class="step-icon"><svg class="icon"><use href="#icon-file"></use></svg></span></span>
+              <div>
+                <h3>選擇 route.txt</h3>
+                <p>新版會包含分段地圖、店點順序、地址與座標。</p>
+              </div>
+            </header>
+            <div class="field-line file-field visit-file-field">
+              <label for="visitFileInput">路線規劃檔</label>
+              <div id="visitFileDrop" class="file-drop" data-file-drop>
+                <svg class="file-drop-icon icon" aria-hidden="true"><use href="#icon-file"></use></svg>
+                <div class="file-drop-copy">
+                  <strong>選擇裝置中的檔案</strong>
+                  <span>或直接拖曳 route.txt 到這裡</span>
+                </div>
+                <span class="file-name" data-file-name aria-live="polite"></span>
+                <input id="visitFileInput" type="file" accept=".txt,text/plain" aria-describedby="visitImportHelp visitImportStatus" />
+              </div>
+            </div>
+          </section>
+
+          <footer class="input-action-bar" aria-label="路線檔匯入動作">
+            <div class="action-bar-status" aria-live="polite">
+              <span class="status-dot" aria-hidden="true"></span>
+              <div>
+                <strong>等待路線檔</strong>
+                <small id="visitImportStatus">尚未載入 route.txt</small>
+              </div>
+            </div>
+          </footer>
+        </div>
+
+        <aside class="instruction-sheet spotlight-card">
+          <div class="readiness-card">
+            <span class="readiness-icon"><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg></span>
+            <div><p>Local workspace</p><h2>本機續跑</h2></div>
+            <span class="readiness-state">LOCAL</span>
+            <ul>
+              <li><svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>關閉頁面後仍可恢復</li>
+              <li><svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>不同 ROUTE_ID 分開保存</li>
+            </ul>
+          </div>
+          <div class="sheet-title aside-title">
+            <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg></span>
+            <div><p class="sheet-kicker">Field notes</p><h2>手機操作原則</h2></div>
+          </div>
+          <div class="notes-grid compact visit-notes">
+            <article class="note-card"><span class="note-index">01</span><h3>避免誤觸</h3><p>滑動清單不會直接改變店點狀態。</p></article>
+            <article class="note-card"><span class="note-index">02</span><h3>立即保存</h3><p>明細中的每次修改都會自動記錄。</p></article>
+          </div>
+        </aside>
+      </div>
+
+      <div id="visitDashboard" class="visit-dashboard" hidden>
+        <section class="visit-overview spotlight-card" aria-labelledby="visitRouteName">
+          <div class="visit-route-copy">
+            <p id="visitRouteDate" class="sheet-kicker">—</p>
+            <h2 id="visitRouteName">本次跑店</h2>
+            <p id="visitRouteMeta">等待路線資料</p>
+          </div>
+          <div class="visit-progress-block">
+            <div class="visit-progress-head">
+              <span>到店進度</span>
+              <strong><span id="visitedCount">0</span> / <span id="visitTotalCount">0</span></strong>
+            </div>
+            <div id="visitProgressBar" class="visit-progress-track" role="progressbar" aria-label="到店進度" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+              <span></span>
+            </div>
+            <div class="visit-progress-foot">
+              <span id="visitPercent">0%</span>
+              <span><strong id="posterCount">0</strong> 間已換牌</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="visit-filter-bar" aria-label="篩選店點">
+          <button type="button" data-visit-filter="unvisited" aria-pressed="false">尚未到店 <span id="unvisitedFilterCount">0</span></button>
+          <button type="button" data-visit-filter="visited" aria-pressed="false">已到店 <span id="visitedFilterCount">0</span></button>
+          <button type="button" data-visit-filter="all" aria-pressed="true">全部 <span id="allFilterCount">0</span></button>
+        </div>
+
+        <div id="visitStoreList" class="visit-segment-list" aria-live="polite"></div>
+      </div>
+
+      <dialog id="visitDetailDialog" class="visit-dialog">
+        <div class="visit-dialog-shell">
+          <header class="visit-dialog-head">
+            <button id="closeVisitDetailBtn" class="visit-icon-button" type="button" aria-label="返回店點清單">
+              <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg>
+            </button>
+            <span id="visitDetailIndex">STORE —</span>
+          </header>
+          <div class="visit-dialog-body">
+            <h2 id="visitDetailName">店點名稱</h2>
+            <p id="visitDetailAddress">地址未提供</p>
+
+            <div class="visit-status-controls">
+              <div>
+                <span>到店狀態</span>
+                <button id="visitToggleVisited" class="visit-state-toggle" type="button" aria-pressed="false"></button>
+              </div>
+              <div>
+                <span>檔期牌</span>
+                <button id="visitTogglePoster" class="visit-state-toggle" type="button" aria-pressed="false"></button>
+              </div>
+            </div>
+
+            <p class="visit-autosave-note"><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg>點選後立即自動儲存，不需要再按儲存。</p>
+            <a id="visitMapsLink" class="visit-maps-action" href="#" target="_blank" rel="noopener">
+              <svg class="icon" aria-hidden="true"><use href="#icon-map"></use></svg>
+              開啟 Google Maps
+            </a>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog id="visitRouteClearDialog" class="visit-confirm-dialog" aria-labelledby="routeClearTitle" aria-describedby="routeClearDescription">
+        <form method="dialog">
+          <span class="confirm-icon"><svg class="icon" aria-hidden="true"><use href="#icon-upload"></use></svg></span>
+          <h2 id="routeClearTitle">載入其他 route.txt？</h2>
+          <p id="routeClearDescription">這會清除這台裝置上的跑店路線與全部進度，並返回跑店登記首頁。此動作無法復原，建議先匯出紀錄。</p>
+          <div>
+            <button value="cancel" class="btn ghost">保留目前路線</button>
+            <button id="confirmRouteClearBtn" value="confirm" class="danger-button">清除並回首頁</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="visitResetDialog" class="visit-confirm-dialog visit-warning-dialog" aria-labelledby="visitResetTitle" aria-describedby="visitResetDescription">
+        <form method="dialog">
+          <span class="confirm-icon"><svg class="icon" aria-hidden="true"><use href="#icon-reset"></use></svg></span>
+          <h2 id="visitResetTitle">重設跑店進度？</h2>
+          <p id="visitResetDescription">目前的 route.txt、店點順序與地圖都會保留；所有到店與檔期牌狀態將歸零。</p>
+          <div>
+            <button value="cancel" class="btn ghost">保留目前進度</button>
+            <button id="confirmVisitResetBtn" value="confirm" class="warning-button">歸零全部狀態</button>
+          </div>
+        </form>
+      </dialog>
+
+      <div id="visitToast" class="visit-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+    </section>
       </main>
 
       <footer class="site-footer">
         <div><span class="brand-mark mini" aria-hidden="true"><img src="favicon.svg?v=20260824" alt="" /></span><p>跑店路線最佳化 · Route planning console</p></div>
-        <p>金鑰僅於瀏覽器工作階段使用；正式部署時仍應限制 API 網域與權限。</p>
+        <p>API 金鑰不上傳；跑店路線與進度只儲存在目前瀏覽器。</p>
       </footer>
     </div>
   </div>
 
-  <script src="app.js?v=20260825a" defer></script>
-  <script src="ui.js?v=20260825a" defer></script>
+  <script src="route-file.js?v=20260826a" defer></script>
+  <script src="app.js?v=20260826b" defer></script>
+  <script src="ui.js?v=20260826a" defer></script>
+  <script src="visit.js?v=20260826c" defer></script>
 </body>
 </html>

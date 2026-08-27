@@ -216,7 +216,7 @@ async function geocodeStores(apiKey, stores) {
     try {
       const latLng = savedLatLng || await robustGeocode(apiKey, name, address);
       if (latLng) {
-        waypoints.push([latLng, name]);
+        waypoints.push([latLng, name, address]);
         if (savedLatLng) csvCoordinateCount += 1;
         else resolvedCoordinateCount += 1;
       } else {
@@ -329,9 +329,8 @@ async function computeOptimizedOrder(hereApiKey, origin, destination, waypoints,
   return indexes;
 }
 
-function splitUrlsAndNames(origin, destination, sortedWaypoints, maxWaypointsPerUrl, opts) {
-  const urls = [];
-  const names = [];
+function splitRouteSegments(origin, destination, sortedWaypoints, maxWaypointsPerUrl, opts) {
+  const segments = [];
   let start = normalizeTW(origin);
 
   for (let i = 0; i < sortedWaypoints.length; i += maxWaypointsPerUrl) {
@@ -345,12 +344,24 @@ function splitUrlsAndNames(origin, destination, sortedWaypoints, maxWaypointsPer
       segmentWaypoints = segmentWaypoints.slice(1);
     }
 
-    urls.push(buildMapsUrl(start, end, segmentWaypoints, opts));
-    names.push(segmentNames);
+    segments.push({
+      index: segments.length + 1,
+      url: buildMapsUrl(start, end, segmentWaypoints, opts),
+      stores: segment.map(([latLng, name, address], offset) => {
+        const [lat, lng] = latLng.split(',').map((value) => value.trim());
+        return {
+          index: i + offset + 1,
+          name,
+          address,
+          lat,
+          lng,
+        };
+      }),
+    });
     start = end;
   }
 
-  return { urls, names };
+  return segments;
 }
 
 function downloadText(filename, content, type = 'text/plain;charset=utf-8') {
@@ -421,6 +432,9 @@ function renderBuilderResults() {
     const latitudeCell = document.createElement('td');
     const longitudeCell = document.createElement('td');
     const mapCell = document.createElement('td');
+    [inputCell, candidateCell, addressCell, latitudeCell, longitudeCell, mapCell].forEach((cell, index) => {
+      cell.dataset.label = ['輸入店名', 'Google 候選', '完整地址', '緯度', '經度', '地圖'][index];
+    });
 
     if (row.candidates.length) {
       if (row.candidates.length === 1) {
@@ -573,39 +587,44 @@ function downloadResolvedStores() {
   downloadText('stores_enriched.csv', csv, 'text/csv;charset=utf-8');
 }
 
-function renderRouteLinks(urls, names) {
+function renderRouteLinks(route, routeFileText) {
   const routesWrap = document.createElement('ol');
   routesWrap.id = 'routeLinks';
   routesWrap.className = 'route-manifest';
 
-  urls.forEach((url, index) => {
+  route.segments.forEach((segment, index) => {
     const routeItem = document.createElement('li');
     const meta = document.createElement('span');
     const link = document.createElement('a');
     const stops = document.createElement('small');
 
     meta.textContent = `route ${String(index + 1).padStart(2, '0')}`;
-    link.href = url;
+    link.href = segment.url;
     link.target = '_blank';
     link.rel = 'noopener';
     link.textContent = `開啟第 ${index + 1} 段 Google Maps 路線`;
-    stops.textContent = `${(names[index] || []).length} 個停靠點`;
+    stops.textContent = `${segment.stores.length} 個停靠點`;
 
     routeItem.append(meta, link, stops);
     routesWrap.appendChild(routeItem);
   });
 
-  const combinedText = urls.map((url, index) => {
-    return `route${index + 1}: ${url}\n${(names[index] || []).join('\n')}`;
-  }).join('\n\n');
-
   const downloadButton = document.createElement('button');
   downloadButton.id = 'downloadAllBtn';
   downloadButton.className = 'secondary';
-  downloadButton.textContent = '下載 routes.txt';
-  downloadButton.addEventListener('click', () => downloadText('routes.txt', combinedText));
+  downloadButton.textContent = '下載 route.txt';
+  downloadButton.addEventListener('click', () => downloadText('route.txt', routeFileText));
 
-  $('outLinks').append(routesWrap, downloadButton);
+  const openVisitButton = document.createElement('button');
+  openVisitButton.id = 'openVisitBtn';
+  openVisitButton.className = 'secondary';
+  openVisitButton.textContent = '在這台裝置開始跑店';
+  openVisitButton.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('px-route-import', { detail: { text: routeFileText } }));
+    setTool('visit');
+  });
+
+  $('outLinks').append(routesWrap, downloadButton, openVisitButton);
 }
 
 async function runRouteGeneration() {
@@ -670,15 +689,27 @@ async function runRouteGeneration() {
   }
 
   const sortedWaypoints = order.map((index) => routeWaypoints[index]);
-  const { urls, names } = splitUrlsAndNames(originLatLng, destinationLatLng, sortedWaypoints, options.maxUrl, {
+  const segments = splitRouteSegments(originLatLng, destinationLatLng, sortedWaypoints, options.maxUrl, {
     mode: options.travelMode,
     avoidHighways: options.avoidHighways,
     avoidTolls: options.avoidTolls,
   });
 
-  $('resultSummary').textContent = `完成：成功讀取並保留 ${stores.length} 筆店點，產出 ${urls.length} 段 Google Maps 路線。`;
-  log(`✅ 共產出 ${urls.length} 條路線並整合為單一 routes.txt。`);
-  renderRouteLinks(urls, names);
+  const now = new Date();
+  const route = {
+    id: PXRouteFile.createRouteId(now),
+    createdAt: now.toISOString(),
+    name: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} 跑店路線`,
+    origin: options.origin,
+    destination: options.destination,
+    travelMode: options.travelMode,
+    segments,
+  };
+  const routeFileText = PXRouteFile.serialize(route);
+
+  $('resultSummary').textContent = `完成：成功讀取並保留 ${stores.length} 筆店點，產出 ${segments.length} 段 Google Maps 路線。`;
+  log(`✅ 共產出 ${segments.length} 條路線並整合為單一 route.txt。`);
+  renderRouteLinks(route, routeFileText);
 }
 
 $('runBtn').addEventListener('click', runRouteGeneration);
@@ -687,22 +718,48 @@ $('backToSetupBtn').addEventListener('click', () => setView('setup'));
 $('resolveStoresBtn').addEventListener('click', resolveStoreNames);
 $('downloadStoresBtn').addEventListener('click', downloadResolvedStores);
 
+document.addEventListener('click', (event) => {
+  document.querySelectorAll('.candidate-picker[open]').forEach((picker) => {
+    if (!picker.contains(event.target)) picker.open = false;
+  });
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  const openPickers = Array.from(document.querySelectorAll('.candidate-picker[open]'));
+  if (!openPickers.length) return;
+  const focusedPicker = openPickers.find((picker) => picker.contains(document.activeElement));
+  openPickers.forEach((picker) => { picker.open = false; });
+  focusedPicker?.querySelector('summary')?.focus();
+});
+
+const TOOL_ORDER = ['builder', 'route', 'visit'];
+
 function setTool(tool) {
+  if (!TOOL_ORDER.includes(tool)) return;
   document.body.dataset.tool = tool;
-  const routeSelected = tool === 'route';
-  $('routeTab').setAttribute('aria-selected', String(routeSelected));
-  $('builderTab').setAttribute('aria-selected', String(!routeSelected));
-  $('routeTab').tabIndex = routeSelected ? 0 : -1;
-  $('builderTab').tabIndex = routeSelected ? -1 : 0;
+  TOOL_ORDER.forEach((toolName) => {
+    const tab = $(`${toolName}Tab`);
+    const selected = tool === toolName;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 $('routeTab').addEventListener('click', () => setTool('route'));
 $('builderTab').addEventListener('click', () => setTool('builder'));
+$('visitTab').addEventListener('click', () => setTool('visit'));
 $('toolTabs').addEventListener('keydown', (event) => {
-  if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  const target = document.body.dataset.tool === 'route' ? $('builderTab') : $('routeTab');
+  const currentIndex = Math.max(0, TOOL_ORDER.indexOf(document.body.dataset.tool));
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? TOOL_ORDER.length - 1
+      : (currentIndex + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1) + TOOL_ORDER.length) % TOOL_ORDER.length;
+  const target = $(`${TOOL_ORDER[nextIndex]}Tab`);
   target.click();
   target.focus();
 });

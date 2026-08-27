@@ -1,6 +1,6 @@
 # 多站點跑店路線最佳化
 
-純前端工具：單次最多讀取 200 間全聯店點；以 HERE 的機車或汽車路網排列拜訪順序，再切成可直接開啟的 Google Maps 導航連結。
+純前端工具：單次最多讀取 200 間全聯店點；以 HERE 的機車或汽車路網排列拜訪順序，再切成可直接開啟的 Google Maps 導航連結。完成規劃後可下載 `route.txt`，帶到手機的「跑店登記」分頁逐店記錄到店與檔期牌狀態。
 
 線上版本：<https://eyeyesight.github.io/GoogleMaps_RouteOptimization_PX/>
 
@@ -12,12 +12,14 @@
   → HERE Waypoints Sequence API v8（scooter／car）排列最多 200 間店
   → 驗證沒有漏點、重複或越界
   → 分段 Google Maps URLs（two-wheeler／driving）
+  → route.txt（分段地圖、店點順序、地址與座標）
+  → 手機跑店登記（localStorage 自動續跑）
 ```
 
 - 路線工具固定以 200 間為單次上限，不在一般操作區暴露工程設定。
 - HERE Waypoints Sequence 上限為 202 點（包含固定起點與終點），因此可容納 200 間店。
 - Google Maps URL 只負責呈現與導航，不負責多店最佳化。
-- 不需要 build step，也不會保存 API key。
+- 不需要 build step，也不會保存 API key。只有「跑店登記」會把已匯入路線與進度保存在目前瀏覽器的 `localStorage`。
 
 詳細驗收標準見 [`docs/final-requirements.md`](docs/final-requirements.md)，API key 官方資料核對見 [`docs/api-key-setup-research.md`](docs/api-key-setup-research.md)，替代方案研究見 [`docs/route-optimization-alternatives.md`](docs/route-optimization-alternatives.md)。
 
@@ -232,7 +234,16 @@ HERE API key 預設可被任何網站使用，必須另外開啟 Trusted Domains
 1. 在「路線最佳化」貼入 HERE key；若 CSV 沒有座標，再貼 Google key。
 2. 輸入起終點，支援地址或 `緯度,經度`。畫面預設為全家便利商店新店統寶店：`24.9732927,121.5492187`。
 3. 選擇交通工具，上傳 CSV，按「產生路線」。單次最多處理 200 間。
-4. 逐段開啟 Google Maps，或下載 `routes.txt`。
+4. 逐段開啟 Google Maps，或下載 `route.txt` 傳到手機。
+
+### 在手機登記跑店進度
+
+1. 切換到「跑店登記」，開啟電腦產生的 `route.txt`。
+2. 首頁卡片只顯示「是否到店／是否換牌」；點進店點明細後才可修改，降低手機滑動時的誤觸。
+3. 每次修改會立即寫入該裝置的 `localStorage`；關閉分頁或瀏覽器後，再次開啟仍會恢復同一份 `ROUTE_ID` 的進度。
+4. 右上角選單可重新載入檔案、匯出含 `VISITED`／`POSTER_CHANGED` 的結果，或只重設本次路線的紀錄。
+
+新版 `route.txt` 是可讀文字格式，包含 `ROUTE_ID`、建立時間、分段 Google Maps URL，以及每間店的名稱、地址與座標。舊版 `routes.txt` 仍可匯入，但因缺少地址與座標，店點明細會以店名開啟 Google Maps 搜尋。
 
 機車每一段使用 `travelmode=two-wheeler`，汽車使用 `travelmode=driving`；工具預設每段 8 間店，可依實際開啟平台調低。Google 官方文件指出 mobile browser 最多支援 3 個中繼點、其他平台最多 9 個，因此若手機沒有完整帶入停靠點，請把「每段停靠點」調低至 3。
 

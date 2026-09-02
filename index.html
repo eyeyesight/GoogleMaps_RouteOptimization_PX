@@ -542,7 +542,7 @@
               <article class="note-card">
                 <span class="note-index">API</span>
                 <h3>連線與權限</h3>
-                <p id="routeApiNote" class="note-copy">Google Key 需啟用 Places／Geocoding API，HERE Key 請確認 Waypoints Sequence 和 Optimization entitlement。</p>
+                <p id="routeApiNote" class="note-copy">Google API 需啟用 Places／Geocoding，HERE API 請確認 Waypoints sequence 和 Optimization entitlement。</p>
                 <a class="note-link" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX#readme" target="_blank" rel="noopener">查看專案 README.md <span aria-hidden="true">↗</span></a>
               </article>
 
@@ -666,11 +666,11 @@
               </div>
             </header>
             <div class="field-line full">
-              <label for="builderApiKey">Google Maps API Key</label>
+              <label for="builderApiKey">Google API Key</label>
               <div class="input-wrap has-icon">
                 <svg class="field-icon icon" aria-hidden="true"><use href="#icon-key"></use></svg>
                 <input id="builderApiKey" type="password" placeholder="需允許 Places API (New)" autocomplete="off" spellcheck="false" />
-                <button class="visibility-toggle" type="button" data-toggle-visibility="builderApiKey" aria-label="顯示 Google Maps API Key"><span aria-hidden="true"></span></button>
+                <button class="visibility-toggle" type="button" data-toggle-visibility="builderApiKey" aria-label="顯示 Google API Key"><span aria-hidden="true"></span></button>
               </div>
             </div>
           </section>
@@ -723,32 +723,27 @@
           <div class="sheet-title aside-title">
             <span class="sheet-icon"><svg class="icon" aria-hidden="true"><use href="#icon-list"></use></svg></span>
             <div>
-              <p class="sheet-kicker">Export notes</p>
-              <h2>輸出規格</h2>
-              <p>選定候選後會輸出 UTF-8 CSV。</p>
+              <p class="sheet-kicker">Reference notes</p>
+              <h2>操作註記</h2>
             </div>
           </div>
 
           <div class="notes-grid compact">
             <article class="note-card">
-              <span class="note-index">01</span>
-              <h3>欄位</h3>
-              <ul>
-                <li>第 0 欄：店名</li>
-                <li>第 1 欄：縣市</li>
-                <li>第 2 欄：完整地址</li>
-                <li>第 3 欄：緯度</li>
-                <li>第 4 欄：經度</li>
-              </ul>
+              <span class="note-index">API</span>
+              <h3>連線與權限</h3>
+              <p id="builderApiNote" class="note-copy">Google API Key 需啟用 Places／Geocoding。</p>
+              <a class="note-link" href="https://github.com/eyeyesight/GoogleMaps_RouteOptimization_PX#readme" target="_blank" rel="noopener">查看專案 README.md <span aria-hidden="true">↗</span></a>
             </article>
             <article class="note-card">
-              <span class="note-index">02</span>
-              <h3>確認方式</h3>
-              <ul>
-                <li>同名或近似門市請使用候選下拉選單。</li>
-                <li>可點「確認位置」在 Google Maps 核對。</li>
-                <li>所有店點成功解析後才可下載。</li>
-              </ul>
+              <span class="note-index">STORES</span>
+              <h3>店點確認方式</h3>
+              <p class="note-copy">同名或近似門市請使用候選下拉選單，可點後面的「確認位置」在 Google Maps 中核對，而所有店點成功解析後方能下載。</p>
+            </article>
+            <article class="note-card">
+              <span class="note-index">CSV</span>
+              <h3>標準店點檔案</h3>
+              <p class="note-copy">選定候選後會輸出 UTF-8 CSV。</p>
             </article>
           </div>
         </aside>

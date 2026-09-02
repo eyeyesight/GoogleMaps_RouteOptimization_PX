@@ -564,7 +564,11 @@ body[data-tool="visit"] #builderTool { display: none; }
 .resolver-footer strong { color: #a7d8bd; }
 .builder-workflow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .builder-layout .input-sheet { border-top: 0; }
-.textarea-wrap textarea { min-height: 260px; padding: 13px; resize: vertical; }
+.textarea-wrap textarea { min-height: 0; padding: 13px; resize: vertical; }
+.builder-layout .textarea-field { display: grid; grid-template-rows: auto 260px; gap: 8px; min-height: 0; }
+.builder-layout .textarea-field > label { margin-bottom: 0; }
+.builder-layout .textarea-field .textarea-wrap { min-height: 0; }
+.builder-layout .textarea-field textarea { display: block; height: 100%; min-height: 0; }
 .textarea-counter { position: absolute; right: 10px; bottom: 9px; padding: 5px 7px; color: var(--muted); background: var(--paper-muted); border: 1px solid var(--line-soft); border-radius: 8px; font-size: 12px; font-weight: 800; }
 .textarea-counter.is-over { color: var(--danger); }
 .builder-readiness { grid-template-columns: 42px minmax(0, 1fr) auto; }
@@ -572,6 +576,18 @@ body[data-tool="visit"] #builderTool { display: none; }
 .readiness-card > .schema-preview { padding-right: 0; }
 .schema-preview span { padding: 8px 5px; overflow: hidden; font: 800 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
 .schema-preview span + span { border-left: 1px solid #161a11; }
+
+@media (min-width: 941px) {
+  .builder-layout .input-sheet { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .builder-layout .form-section:nth-of-type(2) { grid-template-rows: 1fr; align-content: stretch; min-height: 0; }
+  .builder-layout .form-section:nth-of-type(2) .textarea-field { grid-template-rows: auto minmax(0, 1fr); }
+  .builder-layout .form-section:nth-of-type(2) .field-line,
+  .builder-layout .form-section:nth-of-type(2) .textarea-wrap,
+  .builder-layout .form-section:nth-of-type(2) textarea { height: 100%; }
+  .builder-layout .form-section:nth-of-type(2) textarea { min-height: 0; }
+  .builder-layout .instruction-sheet .notes-grid { flex: 1; grid-template-rows: repeat(3, auto); }
+}
+
 .builder-result-sheet { margin-top: 24px; border-right: 1px solid var(--line); container: builder-results / inline-size; }
 .table-scroll { overflow-x: auto; padding: 24px; }
 .store-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; color: var(--ink); background: var(--paper-strong); font-size: 16px; }

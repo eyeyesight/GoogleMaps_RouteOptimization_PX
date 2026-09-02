@@ -20,7 +20,7 @@
   <meta name="description" content="使用 HERE 排序店點，再輸出可用 Google Maps 機車或汽車導航開啟的分段跑店路線。" />
   <title>跑店路線最佳化（全聯）</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260824" />
-  <link rel="stylesheet" href="styles.css?v=20260826e" />
+  <link rel="stylesheet" href="styles.css?v=20260827e" />
 
   <!-- PapaParse for CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
@@ -124,6 +124,16 @@
     <symbol id="icon-more" viewBox="0 0 24 24">
       <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
     </symbol>
+    <symbol id="icon-arrow-left" viewBox="0 0 24 24">
+      <path d="m12 19-7-7 7-7" />
+      <path d="M19 12H5" />
+    </symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24">
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 16h5v5" />
+    </symbol>
     <symbol id="icon-reset" viewBox="0 0 24 24">
       <path d="M3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C8.79275 3 5.97733 4.67765 4.38341 7.20327M3.29339 3.00076L3.46556 5.05452C3.58958 6.53384 3.65159 7.27349 4.13359 7.68914C4.61559 8.10479 5.32673 8.03185 6.74899 7.88595L8.79339 7.67625" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
     </symbol>
@@ -212,14 +222,31 @@
             <h2 class="builder-label">店點建檔</h2>
             <h2 class="visit-label">跑店登記</h2>
           </div>
-          <p class="workspace-note route-builder-note"><span class="workspace-note-mark">200</span> 間店點上限 · Maps waypoint 上限 9</p>
+          <div class="route-workspace-actions">
+            <p class="workspace-note route-builder-note"><span class="workspace-note-mark">200</span> 間店點上限 · Maps waypoint 上限 9</p>
+            <details id="resultMenu" class="workspace-menu result-menu">
+              <summary aria-label="開啟路線輸出選單">
+                <svg class="icon" aria-hidden="true"><use href="#icon-more"></use></svg>
+              </summary>
+              <div class="workspace-menu-popover">
+                <button id="backToSetupBtn" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-arrow-left"></use></svg>
+                  <span><strong>返回修改設定</strong><small>保留目前輸入並回到設定頁</small></span>
+                </button>
+                <button id="rerunBtn" type="button">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+                  <span><strong>重新產生</strong><small>使用目前設定再次計算路線</small></span>
+                </button>
+              </div>
+            </details>
+          </div>
           <div class="visit-workspace-actions">
             <p class="workspace-note visit-workspace-note"><span class="workspace-note-mark" aria-hidden="true"><svg class="icon"><use href="#icon-device-floppy"></use></svg></span><span class="visit-workspace-note-text">自動儲存於這台裝置</span></p>
-            <details id="visitMenu" class="visit-menu" hidden>
+            <details id="visitMenu" class="workspace-menu" hidden>
               <summary aria-label="開啟跑店登記選單">
                 <svg class="icon" aria-hidden="true"><use href="#icon-more"></use></svg>
               </summary>
-              <div class="visit-menu-popover">
+              <div class="workspace-menu-popover">
                 <button id="visitExportBtn" type="button">
                   <svg class="icon" aria-hidden="true"><use href="#icon-download"></use></svg>
                   <span><strong>匯出跑店紀錄</strong><small>下載目前進度備份</small></span>
@@ -543,10 +570,6 @@
             <h1>路線輸出</h1>
             <p id="resultSummary" class="lead" aria-live="polite">正在等待路線產生。</p>
           </div>
-          <div class="result-actions">
-            <button id="backToSetupBtn" class="btn" type="button">返回修改設定</button>
-            <button id="rerunBtn" class="btn ghost" type="button">重新產生</button>
-          </div>
         </header>
 
         <div class="results-layout">
@@ -663,7 +686,7 @@
             <div class="field-line full textarea-field">
               <label for="storeNames">每行一間店</label>
               <div class="textarea-wrap">
-                <textarea id="storeNames" rows="14" placeholder="南港旗艦&#10;淡水沙崙&#10;林口信義"></textarea>
+                <textarea id="storeNames" rows="14" placeholder="新店北宜&#10;淡水沙崙&#10;林口信義"></textarea>
                 <span class="textarea-counter">最多 200 間</span>
               </div>
             </div>
@@ -965,7 +988,7 @@
   </div>
 
   <script src="route-file.js?v=20260826a" defer></script>
-  <script src="app.js?v=20260826b" defer></script>
+  <script src="app.js?v=20260827c" defer></script>
   <script src="ui.js?v=20260826a" defer></script>
   <script src="visit.js?v=20260826c" defer></script>
 </body>

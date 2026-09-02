@@ -30,6 +30,7 @@ function log(message, className = '') {
 }
 
 function setView(view) {
+  $('resultMenu')?.removeAttribute('open');
   document.body.dataset.view = view;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -584,7 +585,7 @@ function downloadResolvedStores() {
     rows.push([row.inputName, areaFromAddress(address), address, place.location.latitude, place.location.longitude]);
   }
   const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
-  downloadText('stores_enriched.csv', csv, 'text/csv;charset=utf-8');
+  downloadText('stores.csv', csv, 'text/csv;charset=utf-8');
 }
 
 function renderRouteLinks(route, routeFileText) {
@@ -611,20 +612,30 @@ function renderRouteLinks(route, routeFileText) {
 
   const downloadButton = document.createElement('button');
   downloadButton.id = 'downloadAllBtn';
-  downloadButton.className = 'secondary';
-  downloadButton.textContent = '下載 route.txt';
+  downloadButton.className = 'output-action route-output-action';
+  downloadButton.type = 'button';
+  const downloadLabel = document.createElement('span');
+  downloadLabel.textContent = '下載 route.txt';
+  downloadButton.append(createSvgIcon('icon-download'), downloadLabel);
   downloadButton.addEventListener('click', () => downloadText('route.txt', routeFileText));
 
   const openVisitButton = document.createElement('button');
   openVisitButton.id = 'openVisitBtn';
-  openVisitButton.className = 'secondary';
-  openVisitButton.textContent = '在這台裝置開始跑店';
+  openVisitButton.className = 'output-action route-output-action route-output-action--outlined';
+  openVisitButton.type = 'button';
+  const openVisitLabel = document.createElement('span');
+  openVisitLabel.textContent = '在這台裝置開始跑店';
+  openVisitButton.append(createSvgIcon('icon-clipboard'), openVisitLabel);
   openVisitButton.addEventListener('click', () => {
     window.dispatchEvent(new CustomEvent('px-route-import', { detail: { text: routeFileText } }));
     setTool('visit');
   });
 
-  $('outLinks').append(routesWrap, downloadButton, openVisitButton);
+  const actionWrap = document.createElement('div');
+  actionWrap.className = 'route-output-actions';
+  actionWrap.append(downloadButton, openVisitButton);
+
+  $('outLinks').append(routesWrap, actionWrap);
 }
 
 async function runRouteGeneration() {
@@ -718,7 +729,10 @@ $('backToSetupBtn').addEventListener('click', () => setView('setup'));
 $('resolveStoresBtn').addEventListener('click', resolveStoreNames);
 $('downloadStoresBtn').addEventListener('click', downloadResolvedStores);
 
+const resultMenu = $('resultMenu');
+
 document.addEventListener('click', (event) => {
+  if (resultMenu?.open && !resultMenu.contains(event.target)) resultMenu.open = false;
   document.querySelectorAll('.candidate-picker[open]').forEach((picker) => {
     if (!picker.contains(event.target)) picker.open = false;
   });
@@ -726,17 +740,20 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
+  const resultMenuWasOpen = Boolean(resultMenu?.open);
   const openPickers = Array.from(document.querySelectorAll('.candidate-picker[open]'));
-  if (!openPickers.length) return;
   const focusedPicker = openPickers.find((picker) => picker.contains(document.activeElement));
+  if (resultMenu) resultMenu.open = false;
   openPickers.forEach((picker) => { picker.open = false; });
-  focusedPicker?.querySelector('summary')?.focus();
+  if (resultMenuWasOpen) resultMenu.querySelector('summary')?.focus();
+  else focusedPicker?.querySelector('summary')?.focus();
 });
 
 const TOOL_ORDER = ['builder', 'route', 'visit'];
 
 function setTool(tool) {
   if (!TOOL_ORDER.includes(tool)) return;
+  if (resultMenu) resultMenu.open = false;
   document.body.dataset.tool = tool;
   TOOL_ORDER.forEach((toolName) => {
     const tab = $(`${toolName}Tab`);
